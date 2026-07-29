@@ -13,7 +13,8 @@ import {
 import { detectProvider } from "../validation/providerDetector.js";
 import { promptForSyntheticToken } from "../commands/credentialCommands.js";
 
-const DEFAULT_REFRESH_MINUTES = 5;
+const DEFAULT_REFRESH_MINUTES = 1;
+const MIN_FOCUS_REFRESH_AGE_MS = 15_000;
 
 export class SyntheticQuotaStatusBarController
   implements vscode.Disposable
@@ -24,6 +25,7 @@ export class SyntheticQuotaStatusBarController
   );
   private timer: NodeJS.Timeout | undefined;
   private refreshPromise: Promise<SyntheticQuota | undefined> | undefined;
+  private lastSuccessfulRefreshAt = 0;
 
   public constructor(
     private readonly settingsService: ClaudeSettingsService,
@@ -32,7 +34,7 @@ export class SyntheticQuotaStatusBarController
     private readonly apiService: SyntheticApiService,
     private readonly logger: RedactingLogger,
   ) {
-    this.statusItem.command = "claudeProvider.select";
+    this.statusItem.command = "claudeProvider.showSyntheticUsage";
   }
 
   public start(): void {
@@ -43,6 +45,15 @@ export class SyntheticQuotaStatusBarController
   public handleConfigurationChange(): void {
     this.reschedule();
     void this.refresh();
+  }
+
+  public handleWindowFocus(): void {
+    if (
+      Date.now() - this.lastSuccessfulRefreshAt >=
+      MIN_FOCUS_REFRESH_AGE_MS
+    ) {
+      void this.refresh();
+    }
   }
 
   public async showDetails(): Promise<void> {
@@ -124,7 +135,7 @@ export class SyntheticQuotaStatusBarController
       if (showStatus) {
         this.statusItem.text = "$(key) Syn quota: set token";
         this.statusItem.tooltip =
-          "Set a Synthetic API token to view quota. Click to switch provider.";
+          "Set a Synthetic API token to view quota. Click to configure it.";
       }
       return undefined;
     }
@@ -132,15 +143,19 @@ export class SyntheticQuotaStatusBarController
     if (showStatus) {
       this.statusItem.text = "$(sync~spin) Syn quota";
       this.statusItem.tooltip =
-        "Refreshing Synthetic quota. Click to switch provider.";
+        "Refreshing Synthetic quota.";
     }
     try {
       const quota = await this.apiService.getQuota();
+      this.lastSuccessfulRefreshAt = Date.now();
       if (showStatus) {
+        const updatedAt = new Date(
+          this.lastSuccessfulRefreshAt,
+        ).toLocaleTimeString();
         this.statusItem.text = `$(graph) Syn: ${formatQuotaStatus(quota)}`;
         this.statusItem.tooltip = `${formatQuotaDetails(
           quota,
-        )} Click to switch provider or open usage tools.`;
+        )} Updated ${updatedAt}. Click to refresh or open usage tools.`;
       }
       return quota;
     } catch (error) {
@@ -148,7 +163,7 @@ export class SyntheticQuotaStatusBarController
       if (showStatus) {
         this.statusItem.text = "$(warning) Syn quota unavailable";
         this.statusItem.tooltip =
-          "Synthetic quota could not be loaded. Click to switch provider or retry from the menu.";
+          "Synthetic quota could not be loaded. Click to retry.";
       }
       return undefined;
     }

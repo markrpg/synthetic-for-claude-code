@@ -507,6 +507,8 @@ export function formatQuotaDetails(quota: SyntheticQuota): string {
 }
 
 export class SyntheticApiService {
+  private quotaRequestSequence = 0;
+
   public constructor(
     private readonly credentialService: CredentialReader,
     private readonly fetcher: FetchLike = globalThis.fetch,
@@ -518,7 +520,12 @@ export class SyntheticApiService {
   }
 
   public async getQuota(): Promise<SyntheticQuota> {
-    return parseQuotaResponse(await this.getJson(SYNTHETIC_QUOTAS_URL));
+    const url = new URL(SYNTHETIC_QUOTAS_URL);
+    url.searchParams.set(
+      "_refresh",
+      `${Date.now()}-${++this.quotaRequestSequence}`,
+    );
+    return parseQuotaResponse(await this.getJson(url.toString()));
   }
 
   private async getJson(url: string): Promise<unknown> {
@@ -536,6 +543,8 @@ export class SyntheticApiService {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache, no-store",
+          Pragma: "no-cache",
         },
         signal: controller.signal,
       });

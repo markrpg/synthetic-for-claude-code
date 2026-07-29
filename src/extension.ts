@@ -194,6 +194,11 @@ export async function activate(
     output,
     statusBarController,
     quotaStatusBarController,
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) {
+        quotaStatusBarController.handleWindowFocus();
+      }
+    }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       const providerChanged =
         event.affectsConfiguration(

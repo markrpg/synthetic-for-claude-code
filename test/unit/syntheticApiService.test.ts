@@ -7,6 +7,7 @@ import {
   parseModelsResponse,
   parseQuotaResponse,
   SYNTHETIC_MODELS_URL,
+  SYNTHETIC_QUOTAS_URL,
   SyntheticApiError,
   SyntheticApiService,
   syntheticModelDisplayName,
@@ -213,6 +214,55 @@ describe("SyntheticApiService", () => {
     expect(
       models.some((model) => model.id === "hf:zai-org/GLM-5.2"),
     ).toBe(true);
+  });
+
+  it("bypasses caches and uniquely identifies every quota refresh", async () => {
+    const requestedUrls: string[] = [];
+    const fetcher = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url,
+        );
+        requestedUrls.push(url.toString());
+        expect(`${url.origin}${url.pathname}`).toBe(
+          SYNTHETIC_QUOTAS_URL,
+        );
+        expect(url.searchParams.get("_refresh")).toBeTruthy();
+        const headers = new Headers(init?.headers);
+        expect(headers.get("Cache-Control")).toBe(
+          "no-cache, no-store",
+        );
+        expect(headers.get("Pragma")).toBe("no-cache");
+        return new Response(
+          JSON.stringify({
+            rollingFiveHourLimit: {
+              remaining: 250,
+              max: 500,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      },
+    );
+    const service = new SyntheticApiService(
+      {
+        getSyntheticToken: async () => "test-placeholder",
+      },
+      fetcher,
+    );
+
+    await service.getQuota();
+    await service.getQuota();
+
+    expect(requestedUrls).toHaveLength(2);
+    expect(requestedUrls[0]).not.toBe(requestedUrls[1]);
   });
 
   it("turns authentication failures into safe errors", async () => {

@@ -34,7 +34,7 @@ The status bar shows the active provider and live Synthetic quota:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.7.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.8.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -75,7 +75,7 @@ While Synthetic is active, the status bar shows percentages remaining for the ro
 
 Quota data comes from `GET https://api.synthetic.new/v2/quotas`. The extension uses `rollingFiveHourLimit` and `weeklyTokenLimit` when returned. The older `subscription` counter appears only as a labelled `legacy` fallback.
 
-Synthetic regenerates quota automatically at the times shown. Open **View Synthetic quota and usage** and choose **Refresh** to fetch the latest values; Synthetic does not currently document an API for manually resetting quota.
+Synthetic regenerates quota automatically at the times shown. The extension bypasses response caches and refreshes every minute by default, whenever Cursor regains focus after 15 seconds, and whenever you click the quota indicator. Synthetic does not currently document an API for manually resetting quota.
 
 See Synthetic's [`/quotas` reference](https://dev.synthetic.new/docs/synthetic/quotas) or run **Synthetic for Claude Code: Open Usage and Billing**.
 
@@ -91,7 +91,7 @@ See Synthetic's [`/quotas` reference](https://dev.synthetic.new/docs/synthetic/q
 - Provider writes are global. Workspace or folder overrides can still take precedence; the extension warns before continuing.
 - Unrelated Claude Code environment variables are preserved. Failed changes are rolled back from an extension snapshot.
 
-Model routes and the quota refresh interval are available under **Synthetic for Claude Code** in Cursor settings. Set `claudeProvider.synthetic.usageRefreshMinutes` to `0` to disable automatic quota refresh.
+Model routes and the quota refresh interval are available under **Synthetic for Claude Code** in Cursor settings. Set `claudeProvider.synthetic.usageRefreshMinutes` to `0` to disable the timed refresh; clicking the quota indicator still fetches current values.
 
 ## Remove
 

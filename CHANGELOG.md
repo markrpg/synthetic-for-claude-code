@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.8
+
+- Fix stale Synthetic quota percentages by bypassing browser and intermediary caches on API requests.
+- Refresh active Synthetic quota every minute by default and when Cursor regains focus.
+- Make the quota status item fetch current values directly and show its last update time.
+
 ## 1.2.7
 
 - Restore the full Cursor or VS Code window reload after provider, credential, or active model-routing changes.
