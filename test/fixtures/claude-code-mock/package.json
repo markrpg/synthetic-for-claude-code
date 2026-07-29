@@ -1,0 +1,38 @@
+{
+  "name": "claude-code-config-test-double",
+  "displayName": "Claude Code Configuration Test Double",
+  "description": "Registers the Claude Code environment setting for extension-host tests only.",
+  "version": "0.0.1",
+  "private": true,
+  "publisher": "test",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Claude Code Test Double",
+      "properties": {
+        "claudeCode.environmentVariables": {
+          "type": "array",
+          "default": [],
+          "scope": "window",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

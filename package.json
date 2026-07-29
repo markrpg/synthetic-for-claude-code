@@ -1,0 +1,187 @@
+{
+  "name": "claude-provider-switcher",
+  "displayName": "Synthetic for Claude Code",
+  "description": "Configure Anthropic's Claude Code editor extension in Cursor or VS Code to use Synthetic, with model routing and rolling quota status.",
+  "version": "1.2.1",
+  "private": true,
+  "license": "UNLICENSED",
+  "publisher": "private",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markrpg/synthetic-for-claude-code.git"
+  },
+  "homepage": "https://github.com/markrpg/synthetic-for-claude-code#readme",
+  "bugs": {
+    "url": "https://github.com/markrpg/synthetic-for-claude-code/issues"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "cursor",
+    "anthropic",
+    "synthetic",
+    "provider",
+    "models",
+    "quota"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:claudeProvider.select",
+    "onCommand:claudeProvider.useSynthetic",
+    "onCommand:claudeProvider.useAnthropic",
+    "onCommand:claudeProvider.toggle",
+    "onCommand:claudeProvider.validate",
+    "onCommand:claudeProvider.showEffectiveConfiguration",
+    "onCommand:claudeProvider.restore",
+    "onCommand:claudeProvider.setSyntheticToken",
+    "onCommand:claudeProvider.clearSyntheticToken",
+    "onCommand:claudeProvider.openSettings",
+    "onCommand:claudeProvider.configureSyntheticModels",
+    "onCommand:claudeProvider.showSyntheticUsage",
+    "onCommand:claudeProvider.openSyntheticUsage"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "clean": "node ./scripts/clean.mjs",
+    "compile": "node ./esbuild.mjs",
+    "watch": "node ./esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src test/unit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "compile:integration": "tsc -p tsconfig.integration.json",
+    "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
+    "check": "npm run typecheck && npm run lint && npm test && npm run compile",
+    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.1.vsix"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeProvider.select",
+        "title": "Synthetic for Claude Code: Select Provider"
+      },
+      {
+        "command": "claudeProvider.useSynthetic",
+        "title": "Synthetic for Claude Code: Use Synthetic"
+      },
+      {
+        "command": "claudeProvider.useAnthropic",
+        "title": "Synthetic for Claude Code: Use Anthropic"
+      },
+      {
+        "command": "claudeProvider.toggle",
+        "title": "Synthetic for Claude Code: Toggle Provider"
+      },
+      {
+        "command": "claudeProvider.validate",
+        "title": "Synthetic for Claude Code: Validate Configuration"
+      },
+      {
+        "command": "claudeProvider.showEffectiveConfiguration",
+        "title": "Synthetic for Claude Code: Show Effective Configuration"
+      },
+      {
+        "command": "claudeProvider.restore",
+        "title": "Synthetic for Claude Code: Restore Previous Configuration"
+      },
+      {
+        "command": "claudeProvider.setSyntheticToken",
+        "title": "Synthetic for Claude Code: Set API Token"
+      },
+      {
+        "command": "claudeProvider.clearSyntheticToken",
+        "title": "Synthetic for Claude Code: Clear API Token"
+      },
+      {
+        "command": "claudeProvider.openSettings",
+        "title": "Synthetic for Claude Code: Open Settings"
+      },
+      {
+        "command": "claudeProvider.configureSyntheticModels",
+        "title": "Synthetic for Claude Code: Configure Models"
+      },
+      {
+        "command": "claudeProvider.showSyntheticUsage",
+        "title": "Synthetic for Claude Code: Show Quota and Usage"
+      },
+      {
+        "command": "claudeProvider.openSyntheticUsage",
+        "title": "Synthetic for Claude Code: Open Usage and Billing"
+      }
+    ],
+    "configuration": {
+      "title": "Synthetic for Claude Code",
+      "properties": {
+        "claudeProvider.confirmBeforeReload": {
+          "type": "boolean",
+          "default": true,
+          "description": "Confirm before changing provider and reloading Cursor."
+        },
+        "claudeProvider.synthetic.baseUrl": {
+          "type": "string",
+          "default": "https://api.synthetic.new/anthropic",
+          "description": "Synthetic Anthropic-compatible endpoint."
+        },
+        "claudeProvider.synthetic.defaultModel": {
+          "type": "string",
+          "default": "syn:large:vision",
+          "description": "Synthetic model or alias used as Claude Code's default model."
+        },
+        "claudeProvider.synthetic.opusModel": {
+          "type": "string",
+          "default": "syn:large:vision",
+          "description": "Synthetic model or alias used for Opus requests."
+        },
+        "claudeProvider.synthetic.sonnetModel": {
+          "type": "string",
+          "default": "syn:large:vision",
+          "description": "Synthetic model or alias used for Sonnet requests."
+        },
+        "claudeProvider.synthetic.haikuModel": {
+          "type": "string",
+          "default": "syn:small:text",
+          "description": "Synthetic model or alias used for Haiku requests."
+        },
+        "claudeProvider.synthetic.subagentModel": {
+          "type": "string",
+          "default": "syn:large:vision",
+          "description": "Synthetic model or alias used for Claude Code subagents."
+        },
+        "claudeProvider.synthetic.usageRefreshMinutes": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "maximum": 1440,
+          "description": "Minutes between Synthetic rolling quota refreshes while Synthetic is active. Set to 0 for manual refresh only."
+        },
+        "claudeProvider.preserveSharedPreferences": {
+          "type": "boolean",
+          "default": true,
+          "description": "Preserve existing shared Claude Code traffic and attribution preferences when switching. Unrelated environment variables are always preserved."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.96.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.24.2",
+    "eslint": "^9.17.0",
+    "mocha": "^11.0.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.1",
+    "vitest": "^2.1.8"
+  }
+}
