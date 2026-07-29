@@ -4,6 +4,20 @@ Configure Anthropic's Claude Code editor extension in Cursor or VS Code to use S
 
 This project targets the graphical Claude Code editor extension. It does not install or configure standalone CLI sessions launched outside Cursor or VS Code.
 
+## Preview
+
+The status bar shows the active provider and live Synthetic quota:
+
+![Claude Code using Synthetic with five-hour and weekly quota remaining](docs/images/status-bar.png)
+
+Configure a separate Synthetic model for each Claude role:
+
+![Configure Synthetic models for Default, Opus, Sonnet, Haiku, and subagents](docs/images/model-routing.png)
+
+Choose from recommended aliases and currently available models:
+
+![Select a Synthetic model for a Claude role](docs/images/model-picker.png)
+
 ## Requirements
 
 - Install Anthropic's [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).

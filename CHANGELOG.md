@@ -2,6 +2,8 @@
 
 ## 1.2.1
 
+- Released the project publicly under the MIT License.
+- Added screenshots of provider status, quota reporting, model routing, and model selection.
 - Clarified that the extension configures Anthropic's Claude Code editor extension for VS Code and Cursor.
 - Added links to the official Claude Code Marketplace listing and editor documentation.
 - Reduced the README to the installation, usage, model, quota, security, and removal information users need.
