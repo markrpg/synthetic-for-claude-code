@@ -1,4 +1,5 @@
 import type * as vscode from "vscode";
+import { SECRET_ENVIRONMENT_KEYS } from "../configuration/managedKeys.js";
 import type {
   DetectedProvider,
   EnvironmentVariable,
@@ -18,6 +19,7 @@ export interface ConfigurationSnapshot {
 
 interface StoredConfigurationSnapshot extends ConfigurationSnapshot {
   protectedTokenSecretKey?: string;
+  protectedSecretKeys?: Record<string, string>;
 }
 
 export class SnapshotService {
@@ -25,16 +27,16 @@ export class SnapshotService {
     private readonly context: vscode.ExtensionContext,
     private readonly getSyntheticBaseUrl?: () => string,
     private readonly registerSecretForRedaction?: (secret: string) => void,
+    private readonly getBridgeBaseUrl?: () => string,
   ) {}
 
   public capture(
     environmentVariables: readonly EnvironmentVariable[],
   ): ConfigurationSnapshot {
-    const token = environmentVariables.find(
-      (variable) => variable.name === "ANTHROPIC_AUTH_TOKEN",
-    )?.value;
-    if (token) {
-      this.registerSecretForRedaction?.(token);
+    for (const variable of environmentVariables) {
+      if (SECRET_ENVIRONMENT_KEYS.has(variable.name) && variable.value) {
+        this.registerSecretForRedaction?.(variable.value);
+      }
     }
     return {
       createdAt: Date.now(),
@@ -45,6 +47,7 @@ export class SnapshotService {
       detectedProvider: detectProvider(
         environmentVariables,
         this.getSyntheticBaseUrl?.(),
+        this.getBridgeBaseUrl?.(),
       ),
     };
   }
@@ -56,48 +59,54 @@ export class SnapshotService {
       this.context.globalState.get<StoredConfigurationSnapshot>(
         SNAPSHOT_STATE_KEY,
       );
-    let protectedToken: string | undefined;
+    const protectedValues = new Map<string, string>();
     const sanitisedVariables = snapshot.environmentVariables.map((variable) => {
-      if (variable.name !== "ANTHROPIC_AUTH_TOKEN") {
+      if (!SECRET_ENVIRONMENT_KEYS.has(variable.name)) {
         return { ...variable };
       }
-      protectedToken = variable.value;
+      protectedValues.set(variable.name, variable.value);
       return { name: variable.name, value: TOKEN_PLACEHOLDER };
     });
 
-    const protectedTokenSecretKey =
-      protectedToken === undefined
-        ? undefined
-        : `${SNAPSHOT_TOKEN_SECRET_PREFIX}.${snapshot.createdAt}`;
+    const protectedSecretKeys = Object.fromEntries(
+      [...protectedValues.keys()].map((name) => [
+        name,
+        `${SNAPSHOT_TOKEN_SECRET_PREFIX}.${snapshot.createdAt}.${name}`,
+      ]),
+    );
     const stored: StoredConfigurationSnapshot = {
       ...snapshot,
       environmentVariables: sanitisedVariables,
-      protectedTokenSecretKey,
+      protectedSecretKeys:
+        Object.keys(protectedSecretKeys).length > 0
+          ? protectedSecretKeys
+          : undefined,
     };
 
-    if (protectedToken !== undefined && protectedTokenSecretKey) {
-      await this.context.secrets.store(
-        protectedTokenSecretKey,
-        protectedToken,
-      );
+    for (const [name, value] of protectedValues) {
+      const secretKey = protectedSecretKeys[name];
+      if (secretKey) {
+        await this.context.secrets.store(secretKey, value);
+      }
     }
     try {
       await this.context.globalState.update(SNAPSHOT_STATE_KEY, stored);
     } catch (error) {
-      if (protectedTokenSecretKey) {
-        await this.context.secrets.delete(protectedTokenSecretKey);
+      for (const secretKey of Object.values(protectedSecretKeys)) {
+        await this.context.secrets.delete(secretKey);
       }
       throw error;
     }
 
-    if (
-      previous?.protectedTokenSecretKey &&
-      previous.protectedTokenSecretKey !== protectedTokenSecretKey
-    ) {
+    const previousKeys = [
+      ...(previous?.protectedTokenSecretKey
+        ? [previous.protectedTokenSecretKey]
+        : []),
+      ...Object.values(previous?.protectedSecretKeys ?? {}),
+    ];
+    for (const secretKey of previousKeys) {
       try {
-        await this.context.secrets.delete(
-          previous.protectedTokenSecretKey,
-        );
+        await this.context.secrets.delete(secretKey);
       } catch {
         // Cleanup failure must not invalidate the newly committed snapshot.
       }
@@ -115,9 +124,9 @@ export class SnapshotService {
       return undefined;
     }
 
-    let protectedToken: string | undefined;
+    const protectedValues = new Map<string, string>();
     if (stored.protectedTokenSecretKey) {
-      protectedToken = await this.context.secrets.get(
+      const protectedToken = await this.context.secrets.get(
         stored.protectedTokenSecretKey,
       );
       if (!protectedToken) {
@@ -126,6 +135,19 @@ export class SnapshotService {
         );
       }
       this.registerSecretForRedaction?.(protectedToken);
+      protectedValues.set("ANTHROPIC_AUTH_TOKEN", protectedToken);
+    }
+    for (const [name, secretKey] of Object.entries(
+      stored.protectedSecretKeys ?? {},
+    )) {
+      const value = await this.context.secrets.get(secretKey);
+      if (!value) {
+        throw new Error(
+          "The previous configuration snapshot requires a credential that is no longer available.",
+        );
+      }
+      this.registerSecretForRedaction?.(value);
+      protectedValues.set(name, value);
     }
 
     return {
@@ -134,10 +156,13 @@ export class SnapshotService {
       detectedProvider: stored.detectedProvider,
       environmentVariables: stored.environmentVariables.map((variable) => {
         if (
-          variable.name === "ANTHROPIC_AUTH_TOKEN" &&
+          SECRET_ENVIRONMENT_KEYS.has(variable.name) &&
           variable.value === TOKEN_PLACEHOLDER
         ) {
-          return { name: variable.name, value: protectedToken ?? "" };
+          return {
+            name: variable.name,
+            value: protectedValues.get(variable.name) ?? "",
+          };
         }
         return { ...variable };
       }),

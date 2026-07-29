@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
+import type { BridgeManager } from "../bridge/bridgeManager.js";
 import type { ClaudeSettingsService } from "../configuration/claudeSettingsService.js";
+import { readModelHopSetting } from "../configuration/modelHopConfiguration.js";
 import {
   environmentVariablesEqual,
   mergeEnvironmentVariables,
@@ -21,7 +23,10 @@ import {
 import { findProviderConflicts } from "../validation/conflictDetector.js";
 import { detectProvider } from "../validation/providerDetector.js";
 import type { ValidationService } from "../validation/validationService.js";
-import { promptForSyntheticToken } from "./credentialCommands.js";
+import {
+  promptForOpenAIApiKey,
+  promptForSyntheticToken,
+} from "./credentialCommands.js";
 
 export class SwitchProviderCommand {
   public constructor(
@@ -34,6 +39,7 @@ export class SwitchProviderCommand {
     private readonly reloadCoordinator: ReloadCoordinator,
     private readonly transcriptRepairService: ClaudeTranscriptRepairService,
     private readonly logger: RedactingLogger,
+    private readonly bridgeManager?: BridgeManager,
   ) {}
 
   public async execute(
@@ -88,6 +94,7 @@ export class SwitchProviderCommand {
     const currentProvider = detectProvider(
       configuration.effectiveRawValue,
       this.providerRegistry.getSyntheticSettings().baseUrl,
+      this.bridgeManager?.getBaseUrl(),
     );
     const profile = this.providerRegistry.getProfile(providerId);
     if (
@@ -97,7 +104,14 @@ export class SwitchProviderCommand {
     ) {
       return;
     }
-    if (currentProvider === "anthropic" && providerId === "synthetic") {
+    if (
+      providerId === "openai-api" &&
+      !(await this.credentialService.hasOpenAIApiKey()) &&
+      !(await promptForOpenAIApiKey(this.credentialService))
+    ) {
+      return;
+    }
+    if (currentProvider === "anthropic" && providerId !== "anthropic") {
       const anthropicApiKey = configuration.global.variables.find(
         (variable) => variable.name === "ANTHROPIC_API_KEY",
       )?.value;
@@ -107,9 +121,11 @@ export class SwitchProviderCommand {
     }
     let targetVariables =
       await this.providerRegistry.buildEnvironment(providerId);
-    const preserveShared = vscode.workspace
-      .getConfiguration("claudeProvider")
-      .get("preserveSharedPreferences", true);
+    const preserveShared = readModelHopSetting(
+      "preserveSharedPreferences",
+      true,
+      "preserveSharedPreferences",
+    );
     if (preserveShared) {
       targetVariables = preserveExistingSharedVariables(
         configuration.global.variables,
@@ -125,6 +141,9 @@ export class SwitchProviderCommand {
       providerId,
       candidateVariables,
       this.providerRegistry.getSyntheticSettings(),
+      providerId === "openai-api" || providerId === "openai-codex"
+        ? this.providerRegistry.getOpenAISettings(providerId)
+        : undefined,
     );
 
     if (
@@ -133,6 +152,16 @@ export class SwitchProviderCommand {
         configuration.global.variables,
       )
     ) {
+      if (
+        (providerId === "openai-api" ||
+          providerId === "openai-codex") &&
+        this.bridgeManager
+      ) {
+        await this.bridgeManager.prepare(
+          providerId,
+          this.providerRegistry.getOpenAISettings(providerId),
+        );
+      }
       const overrideNote = continuedPastOverride
         ? " The workspace override remains effective."
         : "";
@@ -142,9 +171,11 @@ export class SwitchProviderCommand {
       return;
     }
 
-    const shouldConfirm = vscode.workspace
-      .getConfiguration("claudeProvider")
-      .get("confirmBeforeReload", true);
+    const shouldConfirm = readModelHopSetting(
+      "confirmBeforeReload",
+      true,
+      "confirmBeforeReload",
+    );
     if (
       !options.skipConfirmation &&
       shouldConfirm &&
@@ -153,12 +184,32 @@ export class SwitchProviderCommand {
       return;
     }
 
-    const repairConversationHistory = vscode.workspace
-      .getConfiguration("claudeProvider")
-      .get("repairConversationHistory", true);
     if (
-      currentProvider === "synthetic" &&
-      providerId === "anthropic" &&
+      (providerId === "openai-api" ||
+        providerId === "openai-codex") &&
+      this.bridgeManager
+    ) {
+      await this.bridgeManager.prepare(
+        providerId,
+        this.providerRegistry.getOpenAISettings(providerId),
+      );
+    }
+    if (
+      providerId !== "openai-api" &&
+      providerId !== "openai-codex" &&
+      (currentProvider === "openai-api" ||
+        currentProvider === "openai-codex")
+    ) {
+      await this.bridgeManager?.deactivate();
+    }
+
+    const repairConversationHistory = readModelHopSetting(
+      "repairConversationHistory",
+      true,
+      "repairConversationHistory",
+    );
+    if (
+      currentProvider !== providerId &&
       repairConversationHistory
     ) {
       const transcriptRepair =
@@ -190,6 +241,10 @@ export class SwitchProviderCommand {
             targetProvider,
             this.settingsService.read().globalRawValue,
             this.providerRegistry.getSyntheticSettings(),
+            targetProvider === "openai-api" ||
+              targetProvider === "openai-codex"
+              ? this.providerRegistry.getOpenAISettings(targetProvider)
+              : undefined,
           );
         },
         saveLastKnownGood: async (snapshot) => {
@@ -213,7 +268,9 @@ export class SwitchProviderCommand {
           await this.context.globalState.update(
             "claudeProvider.activeProvider",
             previousProvider === "synthetic" ||
-              previousProvider === "anthropic"
+              previousProvider === "anthropic" ||
+              previousProvider === "openai-api" ||
+              previousProvider === "openai-codex"
               ? previousProvider
               : undefined,
           );

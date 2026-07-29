@@ -13,11 +13,13 @@ export async function validateCommand(
   settingsService: ClaudeSettingsService,
   providerRegistry: ProviderRegistry,
   validationService: ValidationService,
+  bridgeBaseUrl?: string,
 ): Promise<void> {
   const configuration = settingsService.read();
   const provider = detectProvider(
     configuration.effectiveRawValue,
     providerRegistry.getSyntheticSettings().baseUrl,
+    bridgeBaseUrl,
   );
   if (provider === "invalid") {
     throw new Error(
@@ -41,9 +43,12 @@ export async function validateCommand(
     provider,
     configuration.effectiveRawValue,
     providerRegistry.getSyntheticSettings(),
+    provider === "openai-api" || provider === "openai-codex"
+      ? providerRegistry.getOpenAISettings(provider)
+      : undefined,
   );
   await vscode.window.showInformationMessage(
-    `Claude Code ${provider === "synthetic" ? "Synthetic" : "Anthropic"} configuration is valid.`,
+    `Claude Code ${providerRegistry.getProfile(provider).shortLabel} configuration is valid.`,
   );
 }
 
@@ -51,11 +56,13 @@ export function showEffectiveConfiguration(
   settingsService: ClaudeSettingsService,
   providerRegistry: ProviderRegistry,
   logger: RedactingLogger,
+  bridgeBaseUrl?: string,
 ): void {
   const configuration = settingsService.read();
   const provider = detectProvider(
     configuration.effectiveRawValue,
     providerRegistry.getSyntheticSettings().baseUrl,
+    bridgeBaseUrl,
   );
   const managed = configuration.effective.variables.filter((variable) =>
     MANAGED_KEYS.has(variable.name),

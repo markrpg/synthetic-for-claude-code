@@ -19,6 +19,10 @@ function providerLabel(provider: PendingReload["provider"]): string {
       return "Synthetic";
     case "anthropic":
       return "Anthropic";
+    case "openai-api":
+      return "OpenAI API";
+    case "openai-codex":
+      return "OpenAI via ChatGPT/Codex (Experimental)";
     case "custom":
       return "a custom gateway";
     case "invalid":

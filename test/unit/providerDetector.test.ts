@@ -50,6 +50,39 @@ describe("detectProvider", () => {
     ).toBe("custom");
   });
 
+  it("detects both ModelHop bridge routes by their ownership marker", () => {
+    for (const provider of ["openai-api", "openai-codex"] as const) {
+      expect(
+        detectProvider(
+          [
+            {
+              name: "ANTHROPIC_BASE_URL",
+              value: "http://127.0.0.1:17777",
+            },
+            { name: "MODELHOP_PROVIDER", value: provider },
+          ],
+          undefined,
+          "http://127.0.0.1:17777",
+        ),
+      ).toBe(provider);
+    }
+  });
+
+  it("fails closed when a loopback bridge lacks a valid ownership marker", () => {
+    expect(
+      detectProvider(
+        [
+          {
+            name: "ANTHROPIC_BASE_URL",
+            value: "http://127.0.0.1:17777",
+          },
+        ],
+        undefined,
+        "http://127.0.0.1:17777",
+      ),
+    ).toBe("invalid");
+  });
+
   it("recognises a configured replacement Synthetic endpoint", () => {
     expect(
       detectProvider(

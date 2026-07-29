@@ -1,121 +1,131 @@
-# Synthetic for Claude Code
+# ModelHop for Claude Code
 
-Run Kimi K3 and other Synthetic models inside Anthropic's Claude Code editor extension for Cursor or VS Code. Switch providers, route each Claude role to a different model, and keep live five-hour and weekly quota visible.
+Use Anthropic, Synthetic, OpenAI API, or your ChatGPT/Codex allowance from the Claude Code editor extension in Cursor and VS Code. ModelHop handles credentials, per-role model routing, usage, provider switching, and conversation compatibility.
 
-> **New to Synthetic? [Create your Synthetic account →](https://synthetic.new/?referral=mTRNs0GS)**
+> **Want Kimi K3 in Claude Code? [Create a Synthetic account](https://synthetic.new/?referral=mTRNs0GS)**
 >
-> This is a referral link. You can also [download the latest VSIX](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+> This is the maintainer's referral link.
 
-This project targets the graphical Claude Code editor extension. It does not install or configure standalone CLI sessions launched outside Cursor or VS Code.
+ModelHop targets Anthropic's graphical [Claude Code extension for VS Code and Cursor](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code). It does not configure standalone Claude Code CLI sessions.
 
-## Run Kimi K3 in Claude Code
+## Providers and billing
 
-Synthetic currently lists Kimi K3 under `hf:moonshotai/Kimi-K3`. This extension uses that actual model ID by default for Claude Code's Default, Opus, Sonnet, and subagent routes, so the model is identifiable instead of appearing only as a generic `syn:` route.
+| Provider | Account used | Usage charged to | Status |
+|---|---|---|---|
+| Anthropic | Claude.ai OAuth or your Anthropic API key | Anthropic/Claude | Stable |
+| Synthetic | Synthetic API token | Synthetic quota | Stable |
+| OpenAI API | OpenAI Platform API key | OpenAI API billing | Release candidate |
+| OpenAI via ChatGPT/Codex | ChatGPT sign-in through a managed Codex runtime | ChatGPT/Codex allowance | **Experimental** |
 
-Claude Code reporting that the active session is routed through Synthetic to Kimi K3:
+The two OpenAI routes do not consume Claude model usage. Claude Code remains the editor UI and tool runner; ModelHop sends model requests through a loopback compatibility bridge.
 
-![Claude Code reports that the active session is running on hf:moonshotai/Kimi-K3](docs/images/claude-code-kimi-k3-confirmation.png)
+## Kimi K3 in Claude Code
 
-The model picker leads with readable names such as **Kimi K3** and **GLM 4.7 Flash**, with the exact `hf:` API identifier shown as secondary detail. Advanced users can still choose a `syn:` automatic route, which is labelled using its currently documented target model.
+Synthetic exposes Kimi K3 as `hf:moonshotai/Kimi-K3`. ModelHop uses that canonical ID by default for the Default, Opus, Sonnet, and subagent roles. Model pickers lead with readable names and keep the exact API ID visible.
 
-See Synthetic's [current model catalogue](https://dev.synthetic.new/docs/api/models) for availability.
+![Claude Code reporting that the session is using Kimi K3](docs/images/claude-code-kimi-k3-confirmation.png)
 
-## Preview
-
-The status bar shows the active provider and live Synthetic quota:
-
-![Claude Code using Synthetic with five-hour and weekly quota remaining](docs/images/status-bar.png)
-
-## Requirements
-
-- Install Anthropic's [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).
-- Cursor users can follow Anthropic's [VS Code and Cursor installation guide](https://code.claude.com/docs/en/ide-integrations).
-- Create an API key from your [Synthetic account](https://synthetic.new/?referral=mTRNs0GS) (referral link).
+[See Synthetic's current model catalogue](https://dev.synthetic.new/docs/api/models), or [create a Synthetic account with the maintainer's referral link](https://synthetic.new/?referral=mTRNs0GS).
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.9.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
-2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
-3. Select the downloaded VSIX.
-4. Reload Cursor when prompted.
+1. Install [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).
+2. Download `modelhop-for-claude-code-2.0.0.vsix` from the [latest release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+3. Run **Extensions: Install from VSIX...** in Cursor or VS Code.
+4. Select the VSIX and reload the editor.
 
-The internal extension ID remains `private.claude-provider-switcher`, so this build upgrades versions 1.1.x and 1.2.0 without creating a second extension. Existing `claudeProvider.*` settings are preserved.
+The internal extension ID remains `private.claude-provider-switcher`, so v2 upgrades the existing extension. Existing `claudeProvider.*` settings still work. New settings use `modelHop.*`.
 
-## Use
+## Switch providers
 
-Click the `Claude: …` status item or run **Synthetic for Claude Code: Select Provider**.
+Click the `Claude: ...` status item or run **ModelHop: Switch Provider**.
 
-- Choose **Synthetic** to enter or reuse an API token and apply the configured model routes.
-- Choose **Anthropic** to remove Synthetic-specific overrides and restore Claude Code's native authentication.
-- Choose **Configure Synthetic model routing** to assign models to Claude roles.
-- Choose **View Synthetic quota and usage** for current limits and regeneration details.
+- **Anthropic** restores Claude Code's native authentication.
+- **Synthetic** asks for a token on first use.
+- **OpenAI API** validates and stores an OpenAI Platform key on first use.
+- **OpenAI via ChatGPT/Codex** shows a one-time warning, installs a verified pinned Codex runtime, and opens browser sign-in.
 
-Provider changes reload the full Cursor or VS Code window so Claude Code receives the new environment and restores its serialized editor state. This is slower than restarting only the extension host, but it is the reliable path for preserving and reopening the active Claude Code conversation. Active Claude requests and subagents stop during the reload.
+Provider changes use a full Cursor or VS Code window reload. This is the reliable way to refresh Claude Code's environment and reopen its current conversation. Running responses and subagents stop during reload.
 
-The confirmation includes a **Don't ask again** checkbox. Selecting it disables future provider-switch confirmations globally; re-enable `claudeProvider.confirmBeforeReload` in the extension's settings at any time.
-
-If the status item is hidden, run **Synthetic for Claude Code: Use Anthropic** or **Synthetic for Claude Code: Use Synthetic** from the Command Palette.
-
-## Conversation continuity
-
-Synthetic models can emit tool-call IDs containing characters such as `:`, while Anthropic accepts only letters, numbers, `_`, and `-`. Synthetic thinking blocks can also lack the cryptographic signature Anthropic verifies. Replaying those blocks after a provider switch otherwise produces a 400 error even though Anthropic authentication is working.
-
-Before switching from Synthetic to Anthropic, the extension silently repairs affected Claude Code transcripts for the current workspace in place:
-
-- incompatible client and server tool IDs are replaced with deterministic Anthropic-compatible IDs;
-- matching tool-result and nested caller references are updated together;
-- Synthetic thinking and redacted-thinking blocks are removed while the conversation branch is reconnected;
-- malformed names, inputs, duplicate IDs, and missing or orphaned tool results are detected so the extension never attempts a lossy guess; and
-- the original transcript is saved privately in the extension's storage before the atomic replacement.
-
-This preserves the existing conversation without adding another prompt or notification to the normal switch. Run **Synthetic for Claude Code: Repair Conversations for Anthropic** only if a chat was already affected before installing the fix. The command reloads the window after a successful repair so the open Claude Code panel reads the corrected history.
-
-Automatic repair is enabled by `claudeProvider.repairConversationHistory`. The repair reads only current-workspace Claude Code transcript files and does not send their contents anywhere.
-
-References: Anthropic's [tool-use flow](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview) and [thinking-signature documentation](https://platform.claude.com/docs/en/about-claude/models/extended-thinking-models).
+The confirmation dialog includes **Don't ask again**. Re-enable it with `modelHop.confirmBeforeReload`.
 
 ## Model routing
 
-The model picker reads `GET https://api.synthetic.new/openai/v1/models`, filters out embedding models, and presents readable model names with exact API IDs in the detail text.
+Each non-Anthropic provider has separate mappings for Claude Code's Default, Opus, Sonnet, Haiku, and subagent roles.
 
-| Claude role | Initial model |
-|---|---|
-| Default, Opus, Sonnet, subagents | Kimi K3 (`hf:moonshotai/Kimi-K3`) |
-| Haiku | GLM 4.7 Flash (`hf:zai-org/GLM-4.7-Flash`) |
+OpenAI starts with:
 
-Exact models may be rotated out by Synthetic. Optional automatic routes remain available in the picker and are labelled by their current documented model rather than by the `syn:` identifier alone.
+| Claude role | Model | Reasoning |
+|---|---|---|
+| Default and Opus | `gpt-5.6-sol` | high |
+| Sonnet and subagents | `gpt-5.6-terra` | medium |
+| Haiku | `gpt-5.6-luna` | low |
 
-References: Synthetic's [Claude Code guide](https://dev.synthetic.new/docs/guides/claude-code), [available models](https://dev.synthetic.new/docs/api/models), and [`/models` API](https://dev.synthetic.new/docs/openai/models).
+The OpenAI API picker reads `/v1/models` and shows models in ModelHop's bundled Claude-tool compatibility catalogue. The Codex picker uses the signed-in account's `model/list` response, including its supported reasoning efforts. A missing configured model stops the switch and opens reconfiguration; ModelHop does not silently substitute another model.
 
-## Quota
+Synthetic model routing uses the provider's live model list:
 
-While Synthetic is active, the status bar shows percentages remaining for the rolling five-hour request window and weekly credits, for example `Syn: 5h 33.2% · wk 56.73% left`.
+## Usage
 
-Quota data comes from `GET https://api.synthetic.new/v2/quotas`. The extension uses `rollingFiveHourLimit` and `weeklyTokenLimit` when returned. The older `subscription` counter appears only as a labelled `legacy` fallback.
+The status bar changes with the active provider.
 
-Synthetic regenerates quota automatically at the times shown. The extension bypasses response caches and refreshes every minute by default, whenever Cursor regains focus after 15 seconds, and whenever you click the quota indicator. Synthetic does not currently document an API for manually resetting quota.
+- Synthetic shows live five-hour and weekly quota, reset timing, and regeneration details. It refreshes every minute by default and when the editor regains focus.
+- OpenAI API shows bridge-session input, cached input, output tokens, request count, estimated cost for catalogued models, and rate-limit headroom. The [OpenAI usage dashboard](https://platform.openai.com/usage) remains authoritative.
+- ChatGPT/Codex shows subscription usage, reset time, and available reset credits. Consuming a reset credit always requires a separate confirmation.
 
-See Synthetic's [`/quotas` reference](https://dev.synthetic.new/docs/synthetic/quotas) or run **Synthetic for Claude Code: Open Usage and Billing**.
+![Synthetic five-hour and weekly quota in the status bar](docs/images/status-bar.png)
 
-## Credentials and settings
+Synthetic does not document a manual quota-reset API. ModelHop only offers a reset action when Codex reports an available earned reset credit.
 
-- The source Synthetic token is stored in VS Code `SecretStorage`.
-- Claude Code requires the active token in `claudeCode.environmentVariables`, where it may be visible in Cursor's user settings while Synthetic is active. Switching to Anthropic removes it.
-- Claude.ai OAuth credentials remain in Claude Code's secure credential store and are never read, changed, or deleted by this extension.
-- If native Anthropic uses `ANTHROPIC_API_KEY` in Cursor settings, the extension protects it in `SecretStorage` while Synthetic is active and restores it when switching back.
-- Synthetic-only model, traffic, and attribution overrides are removed in Anthropic mode so Claude Code can use its normal authentication, usage, and account services.
-- Logs and configuration summaries redact credential values. API response bodies are not logged.
-- Conversation repair backups remain local in the extension's private global storage.
-- Model and quota requests send the token only to the fixed Synthetic HTTPS endpoints documented above.
-- Provider writes are global. Workspace or folder overrides can still take precedence; the extension warns before continuing.
-- Unrelated Claude Code environment variables are preserved. Failed changes are rolled back from an extension snapshot.
+## Conversation continuity
 
-Model routes and the quota refresh interval are available under **Synthetic for Claude Code** in Cursor settings. Set `claudeProvider.synthetic.usageRefreshMinutes` to `0` to disable the timed refresh; clicking the quota indicator still fetches current values.
+Provider responses can contain tool IDs, tool names, result links, and thinking blocks that another provider rejects. ModelHop repairs current-workspace Claude Code transcripts automatically before a provider transition:
+
+- invalid tool names and IDs get deterministic compatible replacements;
+- tool results and nested caller links are updated with the matching ID;
+- incompatible thinking and redacted-thinking blocks are removed;
+- malformed or incomplete tool flows stop the switch instead of guessing;
+- the original transcript is backed up in private extension storage.
+
+This keeps the same Claude Code conversation usable after a switch. The repair runs locally and does not send transcript files anywhere.
+
+## Local OpenAI bridge
+
+ModelHop bundles an Anthropic-compatible server on `127.0.0.1`. It supports `/v1/messages` and `/v1/messages/count_tokens`, text, images, streaming, parallel tool calls, cancellation, and Claude-compatible errors.
+
+For OpenAI API, the bridge translates requests to the Responses API with `store: false`. Tool schemas use `strict: false`. Incompatible tool names and IDs are mapped deterministically. Encrypted reasoning items are retained in an encrypted local continuity store; ModelHop never fabricates Anthropic thinking signatures.
+
+For the Experimental Codex route, ModelHop downloads official Codex `0.146.0` into extension storage and verifies the package SHA-512 digest before extraction. It uses a dedicated Codex home, ephemeral app-server threads, and Claude Code's tools through experimental `dynamicTools`. Codex shell, editing, web search, MCP, apps, plugins, skills, memories, hooks, and subagents are excluded from bridged turns.
+
+The bridge survives full-window reloads and coordinates through a fixed loopback port. Claude Code receives a bridge-only token. OpenAI keys remain in SecretStorage and never appear in `claudeCode.environmentVariables`. If the bridge or selected model is unavailable, the request fails; it does not fall back to Anthropic.
+
+## Credentials
+
+- Synthetic and OpenAI API credentials are stored in VS Code SecretStorage and can be rotated or removed from ModelHop.
+- Anthropic OAuth credentials stay under Claude Code's control.
+- A settings-based Anthropic API key is protected while another provider is active and restored on return.
+- ChatGPT/Codex sign-in and sign-out are handled by the isolated managed runtime.
+- Logs redact registered credentials and never include request content.
+- Unrelated Claude Code environment variables are preserved. Failed configuration writes roll back from a local snapshot.
+
+## Experimental Codex limits
+
+The Codex route depends on OpenAI's experimental app-server `dynamicTools` interface. This local v2 candidate includes mocked multi-tool, isolation, cancellation, and reload-continuity coverage. Live account tests remain opt-in because they can consume a user's allowance. Keep this route marked Experimental until the live compatibility matrix passes.
 
 ## Remove
 
-Switch to Anthropic or run **Synthetic for Claude Code: Restore Previous Configuration** before uninstalling. Removing the extension alone does not rewrite `claudeCode.environmentVariables`.
+Switch to Anthropic or run **ModelHop: Restore Previous Configuration** before uninstalling. Removing the extension alone does not rewrite `claudeCode.environmentVariables`.
+
+## Development
+
+```sh
+npm install
+npm run check
+npm run package
+```
+
+`npm run package` creates `modelhop-for-claude-code-2.0.0.vsix` locally. Publishing, tagging, and GitHub releases are separate actions.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+[MIT](LICENSE)

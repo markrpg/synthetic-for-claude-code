@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { readModelHopSetting } from "../configuration/modelHopConfiguration.js";
 import type { ClaudeSettingsService } from "../configuration/claudeSettingsService.js";
 import type { CredentialService } from "../credentials/credentialService.js";
 import type { RedactingLogger } from "../logging/redactingLogger.js";
@@ -34,7 +35,7 @@ export class SyntheticQuotaStatusBarController
     private readonly apiService: SyntheticApiService,
     private readonly logger: RedactingLogger,
   ) {
-    this.statusItem.command = "claudeProvider.showSyntheticUsage";
+    this.statusItem.command = "modelHop.showUsage";
   }
 
   public start(): void {
@@ -174,9 +175,11 @@ export class SyntheticQuotaStatusBarController
       clearInterval(this.timer);
       this.timer = undefined;
     }
-    const minutes = vscode.workspace
-      .getConfiguration("claudeProvider")
-      .get("synthetic.usageRefreshMinutes", DEFAULT_REFRESH_MINUTES);
+    const minutes = readModelHopSetting(
+      "synthetic.usageRefreshMinutes",
+      DEFAULT_REFRESH_MINUTES,
+      "synthetic.usageRefreshMinutes",
+    );
     if (minutes > 0) {
       this.timer = setInterval(() => {
         void this.refresh();

@@ -6,6 +6,10 @@ import {
   DEFAULT_SYNTHETIC_SETTINGS,
 } from "../../src/providers/syntheticProvider.js";
 import {
+  createOpenAIProfile,
+  DEFAULT_OPENAI_SETTINGS,
+} from "../../src/providers/openAIProvider.js";
+import {
   ConfigurationValidationError,
   ValidationService,
 } from "../../src/validation/validationService.js";
@@ -128,5 +132,53 @@ describe("ValidationService", () => {
       ],
       "anthropic",
     );
+  });
+
+  it("accepts a loopback OpenAI API profile with bridge-only auth", () => {
+    const settings = {
+      ...DEFAULT_OPENAI_SETTINGS,
+      baseUrl: "http://127.0.0.1:17777",
+    };
+    const variables = [
+      ...createOpenAIProfile("openai-api", settings).environmentVariables.slice(
+        0,
+        1,
+      ),
+      { name: "ANTHROPIC_AUTH_TOKEN", value: "bridge-only-token" },
+      ...createOpenAIProfile(
+        "openai-api",
+        settings,
+      ).environmentVariables.slice(1),
+    ];
+
+    expect(
+      service.validateVariables(
+        "openai-api",
+        variables,
+        DEFAULT_SYNTHETIC_SETTINGS,
+        settings,
+      ),
+    ).toEqual(variables);
+  });
+
+  it("rejects a non-loopback bridge and an exposed OpenAI/Anthropic key", () => {
+    const settings = {
+      ...DEFAULT_OPENAI_SETTINGS,
+      baseUrl: "https://gateway.example.invalid",
+    };
+    const variables = [
+      ...createOpenAIProfile("openai-api", settings).environmentVariables,
+      { name: "ANTHROPIC_AUTH_TOKEN", value: "bridge-only-token" },
+      { name: "ANTHROPIC_API_KEY", value: "must-not-be-here" },
+    ];
+
+    expect(() =>
+      service.validateVariables(
+        "openai-api",
+        variables,
+        DEFAULT_SYNTHETIC_SETTINGS,
+        settings,
+      ),
+    ).toThrow(ConfigurationValidationError);
   });
 });

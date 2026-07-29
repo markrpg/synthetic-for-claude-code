@@ -164,7 +164,7 @@ describe("SyntheticQuotaStatusBarController", () => {
     const controller = createController();
 
     expect(vscodeMocks.statusItem.command).toBe(
-      "claudeProvider.showSyntheticUsage",
+      "modelHop.showUsage",
     );
     controller.dispose();
   });

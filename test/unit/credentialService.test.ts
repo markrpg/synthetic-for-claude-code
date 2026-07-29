@@ -2,7 +2,10 @@ import type * as vscode from "vscode";
 import { describe, expect, it, vi } from "vitest";
 import {
   ANTHROPIC_API_KEY_SECRET_KEY,
+  BRIDGE_AUTH_TOKEN_SECRET_KEY,
+  BRIDGE_CONTROL_TOKEN_SECRET_KEY,
   CredentialService,
+  OPENAI_API_KEY_SECRET_KEY,
 } from "../../src/credentials/credentialService.js";
 
 function createSecrets(): {
@@ -50,5 +53,24 @@ describe("CredentialService", () => {
     await service.rememberAnthropicApiKey(undefined);
 
     expect(values.has(ANTHROPIC_API_KEY_SECRET_KEY)).toBe(false);
+  });
+
+  it("keeps OpenAI and bridge credentials independently in SecretStorage", async () => {
+    const { secrets, values } = createSecrets();
+    const service = new CredentialService(secrets);
+
+    await service.setOpenAIApiKey(" sk-openai ");
+    const bridge = await service.getOrCreateBridgeAuthToken();
+    const control = await service.getOrCreateBridgeControlToken();
+
+    expect(values.get(OPENAI_API_KEY_SECRET_KEY)).toBe("sk-openai");
+    expect(values.get(BRIDGE_AUTH_TOKEN_SECRET_KEY)).toBe(bridge);
+    expect(values.get(BRIDGE_CONTROL_TOKEN_SECRET_KEY)).toBe(control);
+    expect(bridge).not.toBe(control);
+
+    await service.clearOpenAIApiKey();
+    expect(values.has(OPENAI_API_KEY_SECRET_KEY)).toBe(false);
+    expect(values.get(BRIDGE_AUTH_TOKEN_SECRET_KEY)).toBe(bridge);
+    expect(values.get(BRIDGE_CONTROL_TOKEN_SECRET_KEY)).toBe(control);
   });
 });

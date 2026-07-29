@@ -32,6 +32,7 @@ export interface TranscriptContentRepair {
   changed: boolean;
   toolUseIdsRepaired: number;
   toolResultIdsRepaired: number;
+  toolNamesRepaired: number;
   thinkingBlocksRemoved: number;
   assistantRecordsRemoved: number;
   parentLinksRepaired: number;
@@ -42,6 +43,7 @@ export interface TranscriptRepairSummary {
   filesChanged: number;
   toolUseIdsRepaired: number;
   toolResultIdsRepaired: number;
+  toolNamesRepaired: number;
   thinkingBlocksRemoved: number;
   assistantRecordsRemoved: number;
   parentLinksRepaired: number;
@@ -50,7 +52,7 @@ export interface TranscriptRepairSummary {
 export class TranscriptCompatibilityError extends Error {
   public constructor(public readonly issueCount: number) {
     super(
-      `Found ${issueCount} Synthetic tool block compatibility issue${
+      `Found ${issueCount} provider tool block compatibility issue${
         issueCount === 1 ? "" : "s"
       } that cannot be repaired without guessing. Wait for active tools to finish, then try the provider switch again.`,
     );
@@ -145,10 +147,7 @@ function countUnsupportedToolIssues(lines: readonly ParsedLine[]): number {
         } else if (value.type === "tool_use") {
           toolUses.set(value.id, (toolUses.get(value.id) ?? 0) + 1);
         }
-        if (
-          typeof value.name !== "string" ||
-          !ANTHROPIC_TOOL_NAME.test(value.name)
-        ) {
+        if (typeof value.name !== "string") {
           issues += 1;
         }
         if (!isPlainObject(value.input)) {
@@ -189,7 +188,7 @@ function compatibleToolUseId(
     .update(sourceId)
     .digest("hex")
     .slice(0, 40);
-  const base = `synthetic_${digest}`;
+  const base = `modelhop_${digest}`;
   let candidate = base;
   let suffix = 1;
   while (usedIds.has(candidate)) {
@@ -243,6 +242,7 @@ export function repairTranscriptContent(
   const invalidIds = new Set<string>();
   const usedIds = new Set<string>();
   let hasIncompatibleThinking = false;
+  let hasIncompatibleToolName = false;
   for (const line of lines) {
     if (!line.record) {
       continue;
@@ -255,6 +255,13 @@ export function repairTranscriptContent(
       if (isIncompatibleThinkingBlock(value, model)) {
         hasIncompatibleThinking = true;
       }
+      if (
+        isToolUseBlock(value) &&
+        typeof value.name === "string" &&
+        !ANTHROPIC_TOOL_NAME.test(value.name)
+      ) {
+        hasIncompatibleToolName = true;
+      }
       addReferencedToolIds(value, (id) => {
         if (ANTHROPIC_TOOL_USE_ID.test(id)) {
           usedIds.add(id);
@@ -264,12 +271,17 @@ export function repairTranscriptContent(
       });
     }
   }
-  if (invalidIds.size === 0 && !hasIncompatibleThinking) {
+  if (
+    invalidIds.size === 0 &&
+    !hasIncompatibleThinking &&
+    !hasIncompatibleToolName
+  ) {
     return {
       content: source,
       changed: false,
       toolUseIdsRepaired: 0,
       toolResultIdsRepaired: 0,
+      toolNamesRepaired: 0,
       thinkingBlocksRemoved: 0,
       assistantRecordsRemoved: 0,
       parentLinksRepaired: 0,
@@ -289,6 +301,7 @@ export function repairTranscriptContent(
   const removedParents = new Map<string, unknown>();
   let toolUseIdsRepaired = 0;
   let toolResultIdsRepaired = 0;
+  let toolNamesRepaired = 0;
   let thinkingBlocksRemoved = 0;
   let assistantRecordsRemoved = 0;
   let parentLinksRepaired = 0;
@@ -322,6 +335,18 @@ export function repairTranscriptContent(
           toolUseIdsRepaired += 1;
           line.changed = true;
         }
+      }
+      if (
+        isToolUseBlock(value) &&
+        typeof value.name === "string" &&
+        !ANTHROPIC_TOOL_NAME.test(value.name)
+      ) {
+        value.name = `modelhop_${createHash("sha256")
+          .update(value.name)
+          .digest("hex")
+          .slice(0, 24)}`;
+        toolNamesRepaired += 1;
+        line.changed = true;
       }
       if (typeof value.tool_use_id === "string") {
         const replacement = replacements.get(value.tool_use_id);
@@ -386,7 +411,9 @@ export function repairTranscriptContent(
   }
 
   const changed =
-    replacements.size > 0 || thinkingBlocksRemoved > 0;
+    replacements.size > 0 ||
+    toolNamesRepaired > 0 ||
+    thinkingBlocksRemoved > 0;
   const repairedLines = lines
     .filter((line) => !line.remove)
     .map((line) =>
@@ -403,6 +430,7 @@ export function repairTranscriptContent(
     changed,
     toolUseIdsRepaired,
     toolResultIdsRepaired,
+    toolNamesRepaired,
     thinkingBlocksRemoved,
     assistantRecordsRemoved,
     parentLinksRepaired,
@@ -428,6 +456,7 @@ function emptySummary(): TranscriptRepairSummary {
     filesChanged: 0,
     toolUseIdsRepaired: 0,
     toolResultIdsRepaired: 0,
+    toolNamesRepaired: 0,
     thinkingBlocksRemoved: 0,
     assistantRecordsRemoved: 0,
     parentLinksRepaired: 0,
@@ -502,6 +531,7 @@ export class ClaudeTranscriptRepairService {
         summary.toolUseIdsRepaired += repair.toolUseIdsRepaired;
         summary.toolResultIdsRepaired +=
           repair.toolResultIdsRepaired;
+        summary.toolNamesRepaired += repair.toolNamesRepaired;
         summary.thinkingBlocksRemoved +=
           repair.thinkingBlocksRemoved;
         summary.assistantRecordsRemoved +=

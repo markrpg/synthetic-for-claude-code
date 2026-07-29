@@ -14,8 +14,9 @@ export class StatusBarController implements vscode.Disposable {
     private readonly settingsService: ClaudeSettingsService,
     private readonly providerRegistry: ProviderRegistry,
     private readonly logger: RedactingLogger,
+    private readonly bridgeBaseUrl?: string,
   ) {
-    this.statusItem.command = "claudeProvider.select";
+    this.statusItem.command = "modelHop.select";
     this.statusItem.tooltip = "Switch Claude Code provider";
   }
 
@@ -25,6 +26,7 @@ export class StatusBarController implements vscode.Disposable {
       const provider = detectProvider(
         configuration.effectiveRawValue,
         this.providerRegistry.getSyntheticSettings().baseUrl,
+        this.bridgeBaseUrl,
       );
 
       switch (provider) {
@@ -34,6 +36,18 @@ export class StatusBarController implements vscode.Disposable {
           break;
         case "anthropic":
           this.statusItem.text = "$(sparkle) Claude: Anthropic";
+          break;
+        case "openai-api":
+          this.statusItem.text = `$(hubot) Claude: OpenAI API · ${
+            this.providerRegistry.getOpenAISettings("openai-api")
+              .defaultModel
+          }`;
+          break;
+        case "openai-codex":
+          this.statusItem.text = `$(beaker) Claude: OpenAI via Codex · ${
+            this.providerRegistry.getOpenAISettings("openai-codex")
+              .defaultModel
+          }`;
           break;
         case "custom":
           this.statusItem.text = "$(server) Claude: Custom Gateway";

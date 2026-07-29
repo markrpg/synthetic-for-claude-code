@@ -1,10 +1,16 @@
 import * as vscode from "vscode";
+import { BridgeManager } from "./bridge/bridgeManager.js";
+import { CodexRuntimeManager } from "./codex/codexRuntimeManager.js";
 import {
+  clearOpenAIApiKeyCommand,
   clearSyntheticTokenCommand,
+  promptForOpenAIApiKey,
+  setOpenAIApiKeyCommand,
   setSyntheticTokenCommand,
 } from "./commands/credentialCommands.js";
-import { restoreCommand } from "./commands/restoreCommand.js";
 import { ModelRoutingCommand } from "./commands/modelRoutingCommand.js";
+import { OpenAIModelRoutingCommand } from "./commands/openAIModelRoutingCommand.js";
+import { restoreCommand } from "./commands/restoreCommand.js";
 import { selectProviderCommand } from "./commands/selectProviderCommand.js";
 import { SwitchProviderCommand } from "./commands/switchProviderCommand.js";
 import {
@@ -14,15 +20,17 @@ import {
 import { ClaudeSettingsService } from "./configuration/claudeSettingsService.js";
 import { CredentialService } from "./credentials/credentialService.js";
 import { RedactingLogger } from "./logging/redactingLogger.js";
+import { OpenAIModelService } from "./openai/openAIModelService.js";
 import { ProviderRegistry } from "./providers/providerRegistry.js";
 import { ReloadCoordinator } from "./reload/reloadCoordinator.js";
 import { SnapshotService } from "./snapshots/snapshotService.js";
+import { SyntheticApiService } from "./synthetic/syntheticApiService.js";
+import { ClaudeTranscriptRepairService } from "./transcripts/claudeTranscriptRepairService.js";
+import { ProviderUsageStatusBarController } from "./ui/providerUsageStatusBarController.js";
 import { StatusBarController } from "./ui/statusBarController.js";
 import { SyntheticQuotaStatusBarController } from "./ui/syntheticQuotaStatusBarController.js";
 import { detectProvider } from "./validation/providerDetector.js";
 import { ValidationService } from "./validation/validationService.js";
-import { SyntheticApiService } from "./synthetic/syntheticApiService.js";
-import { ClaudeTranscriptRepairService } from "./transcripts/claudeTranscriptRepairService.js";
 
 type Command = (...args: never[]) => void | Promise<void>;
 
@@ -44,7 +52,7 @@ export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const output = vscode.window.createOutputChannel(
-    "Synthetic for Claude Code",
+    "ModelHop for Claude Code",
   );
   const logger = new RedactingLogger(output);
   const settingsService = new ClaudeSettingsService();
@@ -54,10 +62,22 @@ export async function activate(
       logger.registerSecret(secret);
     },
   );
-  const providerRegistry = new ProviderRegistry(credentialService);
+  const runtimeManager = new CodexRuntimeManager(context);
+  const bridgeManager = new BridgeManager(
+    context,
+    credentialService,
+    runtimeManager,
+    logger,
+  );
+  await bridgeManager.initialize();
+  const providerRegistry = new ProviderRegistry(
+    credentialService,
+    () => bridgeManager.getBaseUrl(),
+  );
   const syntheticApiService = new SyntheticApiService(
     credentialService,
   );
+  const openAIModelService = new OpenAIModelService(credentialService);
   const validationService = new ValidationService();
   const snapshotService = new SnapshotService(
     context,
@@ -65,6 +85,7 @@ export async function activate(
     (secret) => {
       logger.registerSecret(secret);
     },
+    () => bridgeManager.getBaseUrl(),
   );
   const reloadCoordinator = new ReloadCoordinator(context);
   const transcriptRepairService = new ClaudeTranscriptRepairService(
@@ -77,6 +98,7 @@ export async function activate(
     settingsService,
     providerRegistry,
     logger,
+    bridgeManager.getBaseUrl(),
   );
   const switchCommand = new SwitchProviderCommand(
     context,
@@ -88,6 +110,7 @@ export async function activate(
     reloadCoordinator,
     transcriptRepairService,
     logger,
+    bridgeManager,
   );
   const modelRoutingCommand = new ModelRoutingCommand(
     settingsService,
@@ -95,6 +118,14 @@ export async function activate(
     credentialService,
     syntheticApiService,
     switchCommand,
+    logger,
+  );
+  const openAIModelRoutingCommand = new OpenAIModelRoutingCommand(
+    settingsService,
+    providerRegistry,
+    openAIModelService,
+    switchCommand,
+    () => bridgeManager.getBaseUrl(),
     logger,
   );
   const quotaStatusBarController =
@@ -105,66 +136,153 @@ export async function activate(
       syntheticApiService,
       logger,
     );
+  const providerUsageController =
+    new ProviderUsageStatusBarController(
+      settingsService,
+      providerRegistry,
+      bridgeManager,
+      logger,
+    );
 
   const register = (
-    commandId: string,
+    commandIds: string | readonly string[],
     command: Command,
   ): void => {
-    context.subscriptions.push(
-      vscode.commands.registerCommand(
-        commandId,
-        guardedCommand(logger, command),
-      ),
-    );
+    for (const commandId of [commandIds].flat()) {
+      context.subscriptions.push(
+        vscode.commands.registerCommand(
+          commandId,
+          guardedCommand(logger, command),
+        ),
+      );
+    }
   };
 
-  register("claudeProvider.select", async () => {
+  const currentProvider = (): ReturnType<typeof detectProvider> =>
+    detectProvider(
+      settingsService.read().effectiveRawValue,
+      providerRegistry.getSyntheticSettings().baseUrl,
+      bridgeManager.getBaseUrl(),
+    );
+
+  const configureOpenAIModels = async (
+    providerId: "openai-api" | "openai-codex",
+  ): Promise<void> => {
+    if (
+      providerId === "openai-api" &&
+      !(await credentialService.hasOpenAIApiKey()) &&
+      !(await promptForOpenAIApiKey(credentialService))
+    ) {
+      return;
+    }
+    if (providerId === "openai-codex") {
+      await bridgeManager.prepare(
+        providerId,
+        providerRegistry.getOpenAISettings(providerId),
+        { validateModels: false },
+      );
+      await openAIModelRoutingCommand.execute(
+        providerId,
+        await bridgeManager.codexModels(),
+      );
+      return;
+    }
+    await openAIModelRoutingCommand.execute(providerId);
+  };
+
+  const showUsage = async (): Promise<void> => {
+    if (currentProvider() === "synthetic") {
+      await quotaStatusBarController.showDetails();
+    } else {
+      await providerUsageController.showDetails();
+    }
+  };
+  const logoutCodex = async (): Promise<void> => {
+    if (currentProvider() !== "openai-codex") {
+      await vscode.window.showWarningMessage(
+        "ChatGPT/Codex account management is available while the experimental Codex provider is active.",
+      );
+      return;
+    }
+    const action = await vscode.window.showWarningMessage(
+      "Sign the managed Codex runtime out and switch Claude Code back to Anthropic?",
+      { modal: true },
+      "Sign Out and Switch",
+    );
+    if (action !== "Sign Out and Switch") {
+      return;
+    }
+    await bridgeManager.logoutCodex();
+    await switchCommand.execute("anthropic", {
+      skipConfirmation: true,
+    });
+  };
+
+  register(["modelHop.select", "claudeProvider.select"], async () => {
     await selectProviderCommand(
       settingsService,
       providerRegistry,
       credentialService,
       switchCommand,
       {
-        configureModels: async () => {
+        configureSyntheticModels: async () => {
           await modelRoutingCommand.execute();
         },
-        showUsage: async () => {
-          await quotaStatusBarController.showDetails();
-        },
+        configureOpenAIModels,
+        showUsage,
+        logoutCodex,
       },
+      bridgeManager.getBaseUrl(),
     );
     void quotaStatusBarController.refresh();
+    void providerUsageController.refresh();
   });
-  register("claudeProvider.useSynthetic", async () => {
-    await switchCommand.execute("synthetic");
-  });
-  register("claudeProvider.useAnthropic", async () => {
-    await switchCommand.execute("anthropic");
-  });
-  register("claudeProvider.toggle", async () => {
-    const current = detectProvider(
-      settingsService.read().effectiveRawValue,
-      providerRegistry.getSyntheticSettings().baseUrl,
-    );
+  register(
+    ["modelHop.useSynthetic", "claudeProvider.useSynthetic"],
+    async () => switchCommand.execute("synthetic"),
+  );
+  register(
+    ["modelHop.useAnthropic", "claudeProvider.useAnthropic"],
+    async () => switchCommand.execute("anthropic"),
+  );
+  register("modelHop.useOpenAIApi", async () =>
+    switchCommand.execute("openai-api"),
+  );
+  register("modelHop.useOpenAICodex", async () =>
+    switchCommand.execute("openai-codex"),
+  );
+  register("modelHop.logoutOpenAICodex", logoutCodex);
+  register(["modelHop.toggle", "claudeProvider.toggle"], async () => {
     await switchCommand.execute(
-      current === "synthetic" ? "anthropic" : "synthetic",
+      currentProvider() === "synthetic" ? "anthropic" : "synthetic",
     );
   });
-  register("claudeProvider.validate", async () => {
-    await validateCommand(
-      settingsService,
-      providerRegistry,
-      validationService,
-    );
-  });
-  register("claudeProvider.showEffectiveConfiguration", () => {
-    showEffectiveConfiguration(
-      settingsService,
-      providerRegistry,
-      logger,
-    );
-  });
-  register("claudeProvider.restore", async () => {
+  register(
+    ["modelHop.validate", "claudeProvider.validate"],
+    async () => {
+      await validateCommand(
+        settingsService,
+        providerRegistry,
+        validationService,
+        bridgeManager.getBaseUrl(),
+      );
+    },
+  );
+  register(
+    [
+      "modelHop.showEffectiveConfiguration",
+      "claudeProvider.showEffectiveConfiguration",
+    ],
+    () => {
+      showEffectiveConfiguration(
+        settingsService,
+        providerRegistry,
+        logger,
+        bridgeManager.getBaseUrl(),
+      );
+    },
+  );
+  register(["modelHop.restore", "claudeProvider.restore"], async () => {
     await restoreCommand(
       settingsService,
       snapshotService,
@@ -172,99 +290,166 @@ export async function activate(
       logger,
     );
   });
-  register("claudeProvider.setSyntheticToken", async () => {
-    if (await setSyntheticTokenCommand(credentialService)) {
-      void quotaStatusBarController.refresh();
+  register(
+    ["modelHop.setSyntheticToken", "claudeProvider.setSyntheticToken"],
+    async () => {
+      if (await setSyntheticTokenCommand(credentialService)) {
+        void quotaStatusBarController.refresh();
+      }
+    },
+  );
+  register(
+    [
+      "modelHop.clearSyntheticToken",
+      "claudeProvider.clearSyntheticToken",
+    ],
+    async () => {
+      await clearSyntheticTokenCommand(
+        credentialService,
+        settingsService,
+        reloadCoordinator,
+        logger,
+      );
+    },
+  );
+  register("modelHop.setOpenAIKey", async () => {
+    if (
+      (await setOpenAIApiKeyCommand(credentialService)) &&
+      currentProvider() === "openai-api"
+    ) {
+      await bridgeManager.prepare(
+        "openai-api",
+        providerRegistry.getOpenAISettings("openai-api"),
+      );
     }
   });
-  register("claudeProvider.clearSyntheticToken", async () => {
-    await clearSyntheticTokenCommand(
-      credentialService,
-      settingsService,
-      reloadCoordinator,
-      logger,
-    );
-  });
-  register("claudeProvider.openSettings", async () => {
-    await settingsService.openGlobalSettings();
-  });
-  register("claudeProvider.configureSyntheticModels", async () => {
-    await modelRoutingCommand.execute();
-  });
-  register("claudeProvider.showSyntheticUsage", async () => {
-    await quotaStatusBarController.showDetails();
-  });
-  register("claudeProvider.openSyntheticUsage", async () => {
-    await quotaStatusBarController.openUsageAndBilling();
-  });
-  register("claudeProvider.repairConversations", async () => {
-    const summary =
-      await transcriptRepairService.repairWorkspaceTranscripts(
-        (vscode.workspace.workspaceFolders ?? []).map(
-          (folder) => folder.uri.fsPath,
-        ),
+  register("modelHop.clearOpenAIKey", async () => {
+    if (currentProvider() === "openai-api") {
+      const action = await vscode.window.showWarningMessage(
+        "Clearing the active OpenAI API key will switch Claude Code back to Anthropic and reload the window.",
+        { modal: true },
+        "Clear and Switch",
       );
-    if (summary.filesChanged === 0) {
-      await vscode.window.showInformationMessage(
-        summary.filesScanned === 0
-          ? "No Claude Code conversations were found for the current workspace."
-          : "No incompatible Synthetic conversation data was found.",
-      );
+      if (action !== "Clear and Switch") {
+        return;
+      }
+      await clearOpenAIApiKeyCommand(credentialService);
+      await switchCommand.execute("anthropic", {
+        skipConfirmation: true,
+      });
       return;
     }
-    const provider = detectProvider(
-      settingsService.read().effectiveRawValue,
-      providerRegistry.getSyntheticSettings().baseUrl,
-    );
-    await reloadCoordinator.markPending({
-      provider,
-      switchedAt: Date.now(),
-      reason: "repair",
-      workspaceOverride: false,
-      transcriptRepair: summary,
-    });
-    await reloadCoordinator.reloadWindow();
+    await clearOpenAIApiKeyCommand(credentialService);
   });
+  register(
+    ["modelHop.openSettings", "claudeProvider.openSettings"],
+    async () => {
+      await vscode.commands.executeCommand(
+        "workbench.action.openSettings",
+        "@ext:private.claude-provider-switcher",
+      );
+    },
+  );
+  register(
+    [
+      "modelHop.configureSyntheticModels",
+      "claudeProvider.configureSyntheticModels",
+    ],
+    async () => modelRoutingCommand.execute(),
+  );
+  register("modelHop.configureOpenAIApiModels", async () =>
+    configureOpenAIModels("openai-api"),
+  );
+  register("modelHop.configureOpenAICodexModels", async () =>
+    configureOpenAIModels("openai-codex"),
+  );
+  register(
+    [
+      "modelHop.showUsage",
+      "claudeProvider.showSyntheticUsage",
+    ],
+    showUsage,
+  );
+  register(
+    [
+      "modelHop.openSyntheticUsage",
+      "claudeProvider.openSyntheticUsage",
+    ],
+    async () => quotaStatusBarController.openUsageAndBilling(),
+  );
+  register(
+    [
+      "modelHop.repairConversations",
+      "claudeProvider.repairConversations",
+    ],
+    async () => {
+      const summary =
+        await transcriptRepairService.repairWorkspaceTranscripts(
+          (vscode.workspace.workspaceFolders ?? []).map(
+            (folder) => folder.uri.fsPath,
+          ),
+        );
+      if (summary.filesChanged === 0) {
+        await vscode.window.showInformationMessage(
+          summary.filesScanned === 0
+            ? "No Claude Code conversations were found for the current workspace."
+            : "No incompatible provider conversation data was found.",
+        );
+        return;
+      }
+      await reloadCoordinator.markPending({
+        provider: currentProvider(),
+        switchedAt: Date.now(),
+        reason: "repair",
+        workspaceOverride: false,
+        transcriptRepair: summary,
+      });
+      await reloadCoordinator.reloadWindow();
+    },
+  );
 
   context.subscriptions.push(
     output,
     statusBarController,
     quotaStatusBarController,
+    providerUsageController,
     vscode.window.onDidChangeWindowState((state) => {
       if (state.focused) {
         quotaStatusBarController.handleWindowFocus();
+        void providerUsageController.refresh();
       }
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      const providerChanged =
-        event.affectsConfiguration(
-          "claudeCode.environmentVariables",
-        ) ||
-        event.affectsConfiguration("claudeProvider.synthetic.baseUrl");
-      if (providerChanged) {
+      if (
+        event.affectsConfiguration("claudeCode.environmentVariables") ||
+        event.affectsConfiguration("modelHop") ||
+        event.affectsConfiguration("claudeProvider")
+      ) {
         statusBarController.refresh();
         quotaStatusBarController.handleConfigurationChange();
-      } else if (
-        event.affectsConfiguration(
-          "claudeProvider.synthetic.usageRefreshMinutes",
-        )
-      ) {
-        quotaStatusBarController.handleConfigurationChange();
+        providerUsageController.handleConfigurationChange();
       }
     }),
   );
 
   statusBarController.refresh();
   quotaStatusBarController.start();
-  logger.info(
-    `Detected provider: ${detectProvider(
-      settingsService.read().effectiveRawValue,
-      providerRegistry.getSyntheticSettings().baseUrl,
-    )}`,
-  );
+  providerUsageController.start();
+  const detected = currentProvider();
+  logger.info(`Detected provider: ${detected}`);
+  if (detected === "openai-api" || detected === "openai-codex") {
+    try {
+      await bridgeManager.prepare(
+        detected,
+        providerRegistry.getOpenAISettings(detected),
+      );
+    } catch (error) {
+      logger.error(error);
+    }
+  }
   await reloadCoordinator.showPostReloadNotification();
 }
 
 export function deactivate(): void {
-  // Disposables are owned by the extension context.
+  // The detached bridge intentionally survives full-window reloads.
 }

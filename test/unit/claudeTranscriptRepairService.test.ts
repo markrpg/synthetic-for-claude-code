@@ -276,6 +276,51 @@ describe("repairTranscriptContent", () => {
     );
   });
 
+  it("silently repairs incompatible tool names with linked results intact", () => {
+    const source = `${jsonLine({
+      type: "assistant",
+      uuid: "tool-record",
+      parentUuid: null,
+      message: {
+        model: "hf:future/Synthetic-Model",
+        content: [
+          {
+            type: "tool_use",
+            id: "toolu_valid",
+            name: "mcp:files/read path",
+            input: { path: "README.md" },
+          },
+        ],
+      },
+    })}\n${jsonLine({
+      type: "user",
+      uuid: "result-record",
+      parentUuid: "tool-record",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_valid",
+            content: "result",
+          },
+        ],
+      },
+    })}\n`;
+
+    const repair = repairTranscriptContent(source);
+    const assistant = parseRecord(
+      repair.content.split("\n")[0] ?? "{}",
+    );
+
+    expect(repair.changed).toBe(true);
+    expect(repair.toolNamesRepaired).toBe(1);
+    expect(contentBlocks(assistant)[0]?.name).toMatch(
+      /^modelhop_[a-f0-9]{24}$/,
+    );
+    expect(repair.toolUseIdsRepaired).toBe(0);
+    expect(repair.toolResultIdsRepaired).toBe(0);
+  });
+
   it("does not audit unrelated native Anthropic history", () => {
     const interruptedNativeTurn = `${jsonLine({
       type: "assistant",

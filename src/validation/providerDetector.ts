@@ -13,6 +13,7 @@ export function normaliseProviderUrl(value: string): string | undefined {
 export function detectProvider(
   variables: unknown,
   syntheticBaseUrl = DEFAULT_SYNTHETIC_SETTINGS.baseUrl,
+  bridgeBaseUrl?: string,
 ): DetectedProvider {
   const normalised = normaliseEnvironmentVariables(variables);
   if (
@@ -39,5 +40,18 @@ export function detectProvider(
   }
 
   const syntheticUrl = normaliseProviderUrl(syntheticBaseUrl);
-  return normalisedUrl === syntheticUrl ? "synthetic" : "custom";
+  if (normalisedUrl === syntheticUrl) {
+    return "synthetic";
+  }
+
+  const normalisedBridgeUrl = bridgeBaseUrl
+    ? normaliseProviderUrl(bridgeBaseUrl)
+    : undefined;
+  if (normalisedBridgeUrl && normalisedUrl === normalisedBridgeUrl) {
+    const marker = map.get("MODELHOP_PROVIDER");
+    return marker === "openai-api" || marker === "openai-codex"
+      ? marker
+      : "invalid";
+  }
+  return "custom";
 }

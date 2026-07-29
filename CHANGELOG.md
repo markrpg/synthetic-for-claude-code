@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0 (local release candidate)
+
+- Renamed the public extension to **ModelHop for Claude Code** while keeping the existing extension ID and legacy `claudeProvider.*` settings.
+- Added Anthropic, Synthetic, OpenAI API, and Experimental ChatGPT/Codex providers with separate role mappings and credential storage.
+- Added a loopback-only Anthropic compatibility bridge for OpenAI Responses and Codex app-server requests.
+- Added text, image, streaming, parallel-tool, cancellation, identifier, tool-result, and encrypted reasoning-continuity translation.
+- Added a pinned, integrity-checked Codex runtime with isolated authentication, ephemeral threads, dynamic Claude tools, and native Codex tools disabled.
+- Added canonical GPT model and reasoning pickers, direct API token/cost/headroom reporting, Codex allowance reporting, and confirmed reset-credit consumption.
+- Generalized status items, provider menus, validation, snapshots, and full-window reload handling.
+- Expanded automatic conversation repair to cover tool names, IDs, links, and incompatible thinking blocks across all provider transitions.
+- Added mocked Responses and Codex app-server compatibility coverage. The Codex route remains Experimental pending opt-in live testing.
+
 ## 1.2.9
 
 - Preserve Synthetic conversations when switching back to Anthropic by repairing incompatible tool-call IDs and their matching tool-result references.

@@ -5,6 +5,7 @@ import {
 import { PROVIDER_KEY_NAMES } from "../configuration/managedKeys.js";
 import type {
   EnvironmentVariable,
+  OpenAIProviderSettings,
   ProviderId,
   SyntheticSettings,
 } from "../providers/types.js";
@@ -33,6 +34,7 @@ export class ValidationService {
     providerId: ProviderId,
     rawVariables: unknown,
     syntheticSettings: SyntheticSettings,
+    openAISettings?: OpenAIProviderSettings,
   ): EnvironmentVariable[] {
     const issues: string[] = [];
     const normalised = normaliseEnvironmentVariables(rawVariables);
@@ -61,10 +63,22 @@ export class ValidationService {
       );
     }
 
-    if (providerId === "synthetic") {
-      this.validateSynthetic(variables, syntheticSettings, issues);
-    } else {
-      this.validateAnthropic(variables, issues);
+    switch (providerId) {
+      case "synthetic":
+        this.validateSynthetic(variables, syntheticSettings, issues);
+        break;
+      case "openai-api":
+      case "openai-codex":
+        this.validateOpenAI(
+          providerId,
+          variables,
+          openAISettings,
+          issues,
+        );
+        break;
+      case "anthropic":
+        this.validateAnthropic(variables, issues);
+        break;
     }
 
     if (issues.length > 0) {
@@ -129,6 +143,57 @@ export class ValidationService {
           ", ",
         )}.`,
       );
+    }
+  }
+
+  private validateOpenAI(
+    providerId: Extract<ProviderId, "openai-api" | "openai-codex">,
+    variables: readonly EnvironmentVariable[],
+    expected: OpenAIProviderSettings | undefined,
+    issues: string[],
+  ): void {
+    if (!expected) {
+      issues.push("OpenAI provider settings were not supplied for validation.");
+      return;
+    }
+    const values = new Map(
+      variables.map((variable) => [variable.name, variable.value]),
+    );
+    const baseUrl = values.get("ANTHROPIC_BASE_URL");
+    if (!baseUrl) {
+      issues.push("ANTHROPIC_BASE_URL is missing.");
+    } else {
+      try {
+        const url = new URL(baseUrl);
+        if (
+          url.protocol !== "http:" ||
+          (url.hostname !== "127.0.0.1" && url.hostname !== "localhost")
+        ) {
+          issues.push("The ModelHop bridge must use a loopback HTTP URL.");
+        }
+      } catch {
+        issues.push("The ModelHop bridge URL is invalid.");
+      }
+    }
+
+    const routeExpectations: ReadonlyArray<
+      readonly [keyof SyntheticSettings, string]
+    > = SYNTHETIC_EXPECTATIONS;
+    for (const [settingKey, environmentKey] of routeExpectations) {
+      if (values.get(environmentKey) !== expected[settingKey]) {
+        issues.push(`${environmentKey} does not match the configured profile.`);
+      }
+    }
+    if (!values.get("ANTHROPIC_AUTH_TOKEN")?.trim()) {
+      issues.push("The local bridge authentication token is missing.");
+    }
+    if (values.has("ANTHROPIC_API_KEY")) {
+      issues.push(
+        "ANTHROPIC_API_KEY must not be exposed while a ModelHop bridge is active.",
+      );
+    }
+    if (values.get("MODELHOP_PROVIDER") !== providerId) {
+      issues.push("MODELHOP_PROVIDER does not match the selected provider.");
     }
   }
 }

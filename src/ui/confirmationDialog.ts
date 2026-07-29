@@ -12,6 +12,10 @@ function currentProviderLabel(provider: DetectedProvider): string {
       return "Synthetic";
     case "anthropic":
       return "Anthropic";
+    case "openai-api":
+      return "OpenAI API";
+    case "openai-codex":
+      return "OpenAI via ChatGPT/Codex";
     case "custom":
       return "a custom gateway";
     case "invalid":
@@ -45,7 +49,7 @@ export async function confirmProviderSwitch(
   }
   if (selection.includes(dontAskAgainItem)) {
     await vscode.workspace
-      .getConfiguration("claudeProvider")
+      .getConfiguration("modelHop")
       .update(
         "confirmBeforeReload",
         false,

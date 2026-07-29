@@ -1,7 +1,7 @@
 import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
 
-suite("Synthetic for Claude Code extension", () => {
+suite("ModelHop for Claude Code extension", () => {
   let originalGlobalValue: unknown;
 
   suiteSetup(async () => {
@@ -27,9 +27,9 @@ suite("Synthetic for Claude Code extension", () => {
     assert.ok(extension, "Development extension was not discovered");
     assert.equal(
       extension.packageJSON.displayName,
-      "Synthetic for Claude Code",
+      "ModelHop for Claude Code",
     );
-    assert.equal(extension.packageJSON.version, "1.2.9");
+    assert.equal(extension.packageJSON.version, "2.0.0");
     await extension.activate();
     assert.equal(extension.isActive, true);
 
@@ -39,6 +39,26 @@ suite("Synthetic for Claude Code extension", () => {
       "The editor does not provide the full-window reload command",
     );
     for (const command of [
+      "modelHop.select",
+      "modelHop.useAnthropic",
+      "modelHop.useSynthetic",
+      "modelHop.useOpenAIApi",
+      "modelHop.useOpenAICodex",
+      "modelHop.configureSyntheticModels",
+      "modelHop.configureOpenAIApiModels",
+      "modelHop.configureOpenAICodexModels",
+      "modelHop.setSyntheticToken",
+      "modelHop.clearSyntheticToken",
+      "modelHop.setOpenAIKey",
+      "modelHop.clearOpenAIKey",
+      "modelHop.logoutOpenAICodex",
+      "modelHop.showUsage",
+      "modelHop.openSyntheticUsage",
+      "modelHop.validate",
+      "modelHop.showEffectiveConfiguration",
+      "modelHop.restore",
+      "modelHop.repairConversations",
+      "modelHop.openSettings",
       "claudeProvider.select",
       "claudeProvider.useSynthetic",
       "claudeProvider.useAnthropic",

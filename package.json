@@ -1,8 +1,8 @@
 {
   "name": "claude-provider-switcher",
-  "displayName": "Synthetic for Claude Code",
-  "description": "Run Kimi K3 and other Synthetic models in Anthropic's Claude Code editor extension, with per-role routing and live quota status.",
-  "version": "1.2.9",
+  "displayName": "ModelHop for Claude Code",
+  "description": "Run Claude Code with Anthropic, Synthetic, OpenAI API, or an experimental ChatGPT/Codex bridge, with per-role model routing and live usage.",
+  "version": "2.0.0",
   "license": "MIT",
   "publisher": "private",
   "repository": {
@@ -17,20 +17,22 @@
     "vscode": "^1.96.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Machine Learning"
   ],
   "keywords": [
     "claude",
     "claude-code",
     "cursor",
     "anthropic",
+    "openai",
+    "chatgpt",
+    "codex",
+    "gpt-5.6",
     "synthetic",
-    "kimi",
     "kimi-k3",
-    "moonshot-ai",
     "provider",
-    "models",
-    "quota",
+    "model-routing",
     "vscode-extension",
     "ai-coding"
   ],
@@ -38,21 +40,7 @@
     "ui"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:claudeProvider.select",
-    "onCommand:claudeProvider.useSynthetic",
-    "onCommand:claudeProvider.useAnthropic",
-    "onCommand:claudeProvider.toggle",
-    "onCommand:claudeProvider.validate",
-    "onCommand:claudeProvider.showEffectiveConfiguration",
-    "onCommand:claudeProvider.restore",
-    "onCommand:claudeProvider.setSyntheticToken",
-    "onCommand:claudeProvider.clearSyntheticToken",
-    "onCommand:claudeProvider.openSettings",
-    "onCommand:claudeProvider.configureSyntheticModels",
-    "onCommand:claudeProvider.showSyntheticUsage",
-    "onCommand:claudeProvider.openSyntheticUsage",
-    "onCommand:claudeProvider.repairConversations"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -66,124 +54,298 @@
     "compile:integration": "tsc -p tsconfig.integration.json",
     "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run compile",
-    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.9.vsix"
+    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out modelhop-for-claude-code-2.0.0.vsix"
   },
   "contributes": {
     "commands": [
       {
-        "command": "claudeProvider.select",
-        "title": "Synthetic for Claude Code: Select Provider"
+        "command": "modelHop.select",
+        "title": "ModelHop: Switch Provider"
       },
       {
-        "command": "claudeProvider.useSynthetic",
-        "title": "Synthetic for Claude Code: Use Synthetic"
+        "command": "modelHop.useAnthropic",
+        "title": "ModelHop: Use Anthropic"
       },
       {
-        "command": "claudeProvider.useAnthropic",
-        "title": "Synthetic for Claude Code: Use Anthropic"
+        "command": "modelHop.useSynthetic",
+        "title": "ModelHop: Use Synthetic"
       },
       {
-        "command": "claudeProvider.toggle",
-        "title": "Synthetic for Claude Code: Toggle Provider"
+        "command": "modelHop.useOpenAIApi",
+        "title": "ModelHop: Use OpenAI API"
       },
       {
-        "command": "claudeProvider.validate",
-        "title": "Synthetic for Claude Code: Validate Configuration"
+        "command": "modelHop.useOpenAICodex",
+        "title": "ModelHop: Use OpenAI via ChatGPT/Codex (Experimental)"
       },
       {
-        "command": "claudeProvider.showEffectiveConfiguration",
-        "title": "Synthetic for Claude Code: Show Effective Configuration"
+        "command": "modelHop.configureSyntheticModels",
+        "title": "ModelHop: Configure Synthetic Models"
       },
       {
-        "command": "claudeProvider.restore",
-        "title": "Synthetic for Claude Code: Restore Previous Configuration"
+        "command": "modelHop.configureOpenAIApiModels",
+        "title": "ModelHop: Configure OpenAI API Models"
       },
       {
-        "command": "claudeProvider.setSyntheticToken",
-        "title": "Synthetic for Claude Code: Set API Token"
+        "command": "modelHop.configureOpenAICodexModels",
+        "title": "ModelHop: Configure ChatGPT/Codex Models (Experimental)"
       },
       {
-        "command": "claudeProvider.clearSyntheticToken",
-        "title": "Synthetic for Claude Code: Clear API Token"
+        "command": "modelHop.setSyntheticToken",
+        "title": "ModelHop: Set Synthetic Token"
       },
       {
-        "command": "claudeProvider.openSettings",
-        "title": "Synthetic for Claude Code: Open Settings"
+        "command": "modelHop.clearSyntheticToken",
+        "title": "ModelHop: Clear Synthetic Token"
       },
       {
-        "command": "claudeProvider.configureSyntheticModels",
-        "title": "Synthetic for Claude Code: Configure Models"
+        "command": "modelHop.setOpenAIKey",
+        "title": "ModelHop: Set OpenAI API Key"
       },
       {
-        "command": "claudeProvider.showSyntheticUsage",
-        "title": "Synthetic for Claude Code: Show Quota and Usage"
+        "command": "modelHop.clearOpenAIKey",
+        "title": "ModelHop: Clear OpenAI API Key"
       },
       {
-        "command": "claudeProvider.openSyntheticUsage",
-        "title": "Synthetic for Claude Code: Open Usage and Billing"
+        "command": "modelHop.logoutOpenAICodex",
+        "title": "ModelHop: Sign Out of ChatGPT/Codex (Experimental)"
       },
       {
-        "command": "claudeProvider.repairConversations",
-        "title": "Synthetic for Claude Code: Repair Conversations for Anthropic"
+        "command": "modelHop.showUsage",
+        "title": "ModelHop: Show Active Provider Usage"
+      },
+      {
+        "command": "modelHop.openSyntheticUsage",
+        "title": "ModelHop: Open Synthetic Usage and Billing"
+      },
+      {
+        "command": "modelHop.validate",
+        "title": "ModelHop: Validate Configuration"
+      },
+      {
+        "command": "modelHop.showEffectiveConfiguration",
+        "title": "ModelHop: Show Effective Configuration"
+      },
+      {
+        "command": "modelHop.restore",
+        "title": "ModelHop: Restore Previous Configuration"
+      },
+      {
+        "command": "modelHop.repairConversations",
+        "title": "ModelHop: Repair Current Conversations"
+      },
+      {
+        "command": "modelHop.openSettings",
+        "title": "ModelHop: Open Settings"
       }
     ],
     "configuration": {
-      "title": "Synthetic for Claude Code",
+      "title": "ModelHop for Claude Code",
       "properties": {
-        "claudeProvider.confirmBeforeReload": {
+        "modelHop.confirmBeforeReload": {
           "type": "boolean",
           "default": true,
-          "description": "Confirm before changing provider and reloading the Cursor window."
+          "description": "Confirm before changing provider and reloading the Cursor or VS Code window."
         },
-        "claudeProvider.synthetic.baseUrl": {
+        "modelHop.preserveSharedPreferences": {
+          "type": "boolean",
+          "default": true,
+          "description": "Preserve shared Claude Code traffic and attribution preferences while switching."
+        },
+        "modelHop.repairConversationHistory": {
+          "type": "boolean",
+          "default": true,
+          "description": "Silently normalize incompatible tool metadata and unsigned thinking blocks before provider transitions."
+        },
+        "modelHop.synthetic.baseUrl": {
           "type": "string",
           "default": "https://api.synthetic.new/anthropic",
           "description": "Synthetic Anthropic-compatible endpoint."
         },
+        "modelHop.synthetic.defaultModel": {
+          "type": "string",
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used as Claude Code's default."
+        },
+        "modelHop.synthetic.opusModel": {
+          "type": "string",
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used for Opus requests."
+        },
+        "modelHop.synthetic.sonnetModel": {
+          "type": "string",
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used for Sonnet requests."
+        },
+        "modelHop.synthetic.haikuModel": {
+          "type": "string",
+          "default": "hf:zai-org/GLM-4.7-Flash",
+          "description": "Synthetic model used for Haiku requests."
+        },
+        "modelHop.synthetic.subagentModel": {
+          "type": "string",
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used for Claude Code subagents."
+        },
+        "modelHop.synthetic.usageRefreshMinutes": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 1440,
+          "description": "Minutes between uncached Synthetic quota refreshes. Set to 0 for manual refresh."
+        },
+        "modelHop.openaiApi.defaultModel": {
+          "type": "string",
+          "default": "gpt-5.6-sol",
+          "description": "OpenAI API model used as Claude Code's default."
+        },
+        "modelHop.openaiApi.opusModel": {
+          "type": "string",
+          "default": "gpt-5.6-sol",
+          "description": "OpenAI API model used for Opus requests."
+        },
+        "modelHop.openaiApi.sonnetModel": {
+          "type": "string",
+          "default": "gpt-5.6-terra",
+          "description": "OpenAI API model used for Sonnet requests."
+        },
+        "modelHop.openaiApi.haikuModel": {
+          "type": "string",
+          "default": "gpt-5.6-luna",
+          "description": "OpenAI API model used for Haiku requests."
+        },
+        "modelHop.openaiApi.subagentModel": {
+          "type": "string",
+          "default": "gpt-5.6-terra",
+          "description": "OpenAI API model used for Claude Code subagents."
+        },
+        "modelHop.openaiApi.defaultReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "high"
+        },
+        "modelHop.openaiApi.opusReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "high"
+        },
+        "modelHop.openaiApi.sonnetReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "medium"
+        },
+        "modelHop.openaiApi.haikuReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "low"
+        },
+        "modelHop.openaiApi.subagentReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "medium"
+        },
+        "modelHop.openaiCodex.defaultModel": {
+          "type": "string",
+          "default": "gpt-5.6-sol"
+        },
+        "modelHop.openaiCodex.opusModel": {
+          "type": "string",
+          "default": "gpt-5.6-sol"
+        },
+        "modelHop.openaiCodex.sonnetModel": {
+          "type": "string",
+          "default": "gpt-5.6-terra"
+        },
+        "modelHop.openaiCodex.haikuModel": {
+          "type": "string",
+          "default": "gpt-5.6-luna"
+        },
+        "modelHop.openaiCodex.subagentModel": {
+          "type": "string",
+          "default": "gpt-5.6-terra"
+        },
+        "modelHop.openaiCodex.defaultReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "high"
+        },
+        "modelHop.openaiCodex.opusReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "high"
+        },
+        "modelHop.openaiCodex.sonnetReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "medium"
+        },
+        "modelHop.openaiCodex.haikuReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "low"
+        },
+        "modelHop.openaiCodex.subagentReasoningEffort": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "default": "medium"
+        },
+        "claudeProvider.confirmBeforeReload": {
+          "type": "boolean",
+          "default": true,
+          "deprecationMessage": "Use modelHop.confirmBeforeReload. This legacy setting remains supported."
+        },
+        "claudeProvider.preserveSharedPreferences": {
+          "type": "boolean",
+          "default": true,
+          "deprecationMessage": "Use modelHop.preserveSharedPreferences."
+        },
+        "claudeProvider.repairConversationHistory": {
+          "type": "boolean",
+          "default": true,
+          "deprecationMessage": "Use modelHop.repairConversationHistory."
+        },
+        "claudeProvider.synthetic.baseUrl": {
+          "type": "string",
+          "default": "https://api.synthetic.new/anthropic",
+          "deprecationMessage": "Use modelHop.synthetic.baseUrl."
+        },
         "claudeProvider.synthetic.defaultModel": {
           "type": "string",
           "default": "hf:moonshotai/Kimi-K3",
-          "description": "Synthetic model used as Claude Code's default model. Advanced syn: automatic routes are also supported."
+          "deprecationMessage": "Use modelHop.synthetic.defaultModel."
         },
         "claudeProvider.synthetic.opusModel": {
           "type": "string",
           "default": "hf:moonshotai/Kimi-K3",
-          "description": "Synthetic model used for Opus requests. Advanced syn: automatic routes are also supported."
+          "deprecationMessage": "Use modelHop.synthetic.opusModel."
         },
         "claudeProvider.synthetic.sonnetModel": {
           "type": "string",
           "default": "hf:moonshotai/Kimi-K3",
-          "description": "Synthetic model used for Sonnet requests. Advanced syn: automatic routes are also supported."
+          "deprecationMessage": "Use modelHop.synthetic.sonnetModel."
         },
         "claudeProvider.synthetic.haikuModel": {
           "type": "string",
           "default": "hf:zai-org/GLM-4.7-Flash",
-          "description": "Synthetic model used for Haiku requests. Advanced syn: automatic routes are also supported."
+          "deprecationMessage": "Use modelHop.synthetic.haikuModel."
         },
         "claudeProvider.synthetic.subagentModel": {
           "type": "string",
           "default": "hf:moonshotai/Kimi-K3",
-          "description": "Synthetic model used for Claude Code subagents. Advanced syn: automatic routes are also supported."
+          "deprecationMessage": "Use modelHop.synthetic.subagentModel."
         },
         "claudeProvider.synthetic.usageRefreshMinutes": {
           "type": "number",
           "default": 1,
           "minimum": 0,
           "maximum": 1440,
-          "description": "Minutes between uncached Synthetic rolling quota refreshes while Synthetic is active. Set to 0 for manual refresh only."
-        },
-        "claudeProvider.preserveSharedPreferences": {
-          "type": "boolean",
-          "default": true,
-          "description": "Preserve existing shared Claude Code traffic and attribution preferences when switching. Unrelated environment variables are always preserved."
-        },
-        "claudeProvider.repairConversationHistory": {
-          "type": "boolean",
-          "default": true,
-          "description": "Silently repair incompatible Synthetic tool metadata and non-Anthropic thinking blocks in current-workspace Claude Code transcripts before switching to Anthropic. Private backups are saved in extension storage."
+          "deprecationMessage": "Use modelHop.synthetic.usageRefreshMinutes."
         }
       }
     }
+  },
+  "dependencies": {
+    "tar": "^7.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
