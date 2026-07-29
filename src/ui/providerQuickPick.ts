@@ -69,7 +69,7 @@ export async function showProviderQuickPick(
     label: "$(key) Set or update Synthetic token",
     description: credentials.synthetic ? "Token saved" : "Token not set",
     detail:
-      "Stored in Cursor SecretStorage and applied when Synthetic is selected.",
+      "Stored in Cursor SecretStorage and supplied only to the local ModelHop bridge.",
   };
   const openAIKeyItem: ActionQuickPickItem = {
     selection: "set-openai-key",

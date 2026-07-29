@@ -1,23 +1,57 @@
 import type {
+  ModelRoutingSettings,
   OpenAIProviderSettings,
   ProviderId,
+  SyntheticSettings,
 } from "../providers/types.js";
 
-export const BRIDGE_PROTOCOL_VERSION = "2.0.0+codex-tool-names";
+export const BRIDGE_PROTOCOL_VERSION = "2.1.0+context-ledger";
 
 export type BridgeProviderId = Extract<
   ProviderId,
-  "openai-api" | "openai-codex"
+  "synthetic" | "openai-api" | "openai-codex"
 >;
 
-export interface BridgeConfiguration {
+export interface ContextManagementSettings {
+  enabled: boolean;
+  thresholdPercent: number;
+  fallbackContextTokens: number;
+  retainRecentTokens: number;
+}
+
+interface BridgeConfigurationBase {
   provider: BridgeProviderId;
   bridgeAuthToken: string;
-  openAIApiKey?: string;
-  openAISettings: OpenAIProviderSettings;
-  codexExecutable?: string;
-  codexWorkingDirectory?: string;
+  contextManagement: ContextManagementSettings;
 }
+
+export interface SyntheticBridgeConfiguration
+  extends BridgeConfigurationBase {
+  provider: "synthetic";
+  syntheticToken: string;
+  syntheticSettings: SyntheticSettings;
+}
+
+export interface OpenAIApiBridgeConfiguration
+  extends BridgeConfigurationBase {
+  provider: "openai-api";
+  openAIApiKey: string;
+  openAISettings: OpenAIProviderSettings;
+}
+
+export interface OpenAICodexBridgeConfiguration
+  extends BridgeConfigurationBase {
+  provider: "openai-codex";
+  openAISettings: OpenAIProviderSettings;
+  openAIApiKey?: string;
+  codexExecutable: string;
+  codexWorkingDirectory: string;
+}
+
+export type BridgeConfiguration =
+  | SyntheticBridgeConfiguration
+  | OpenAIApiBridgeConfiguration
+  | OpenAICodexBridgeConfiguration;
 
 export interface BridgeHealth {
   name: "modelhop-bridge";
@@ -58,4 +92,9 @@ export interface BridgeModel {
   description: string;
   supportedReasoningEfforts: string[];
   isDefault?: boolean;
+  contextWindow?: number;
 }
+
+export type BridgeRoutingSettings =
+  | ModelRoutingSettings
+  | OpenAIProviderSettings;

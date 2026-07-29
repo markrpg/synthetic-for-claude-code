@@ -49,8 +49,34 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     turnCounter += 1;
     const turnId = "turn_" + turnCounter;
     send({ id: message.id, result: { turn: { id: turnId, status: "inProgress" } } });
+    send({
+      method: "thread/tokenUsage/updated",
+      params: {
+        threadId: "thr_1",
+        turnId,
+        tokenUsage: {
+          total: {},
+          last: {},
+          modelContextWindow: 128000,
+        },
+      },
+    });
     const inputText = JSON.stringify(message.params.input);
-    if (inputText.includes("fail immediately")) {
+    if (inputText.includes("context failure")) {
+      send({
+        method: "turn/completed",
+        params: {
+          threadId: "thr_1",
+          turn: {
+            status: "failed",
+            error: {
+              message: "Codex ran out of room in the context window.",
+              codexErrorInfo: "contextWindowExceeded",
+            },
+          },
+        },
+      });
+    } else if (inputText.includes("fail immediately")) {
       send({
         method: "turn/completed",
         params: {
@@ -224,6 +250,14 @@ describe("CodexAppServerClient", () => {
       expect(sentTools[0]?.name).toBe(
         "modelhop_mcp__files__read",
       );
+      const turnStart = lines.find(
+        (line) => line.method === "turn/start",
+      );
+      const turnParams = isRecord(turnStart?.params)
+        ? turnStart.params
+        : {};
+      expect(turnParams.effort).toBe("high");
+      expect(client.contextWindow("gpt-5.6-sol")).toBe(128_000);
     } finally {
       client.dispose();
       await rm(root, { recursive: true, force: true });
@@ -272,6 +306,31 @@ describe("CodexAppServerClient", () => {
           DEFAULT_OPENAI_SETTINGS,
         ),
       ).rejects.toThrow("synthetic failure");
+    } finally {
+      client.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces context exhaustion as a terminal request error", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "modelhop-codex-test-"));
+    const { executable } = await createFakeAppServer(root);
+    const client = new CodexAppServerClient(executable, root);
+    try {
+      const error = await client
+        .run(
+          {
+            model: "gpt-5.6-sol",
+            messages: [{ role: "user", content: "context failure" }],
+          },
+          DEFAULT_OPENAI_SETTINGS,
+        )
+        .catch((value: unknown) => value);
+      expect(isRecord(error)).toBe(true);
+      expect((error as { status?: unknown }).status).toBe(400);
+      expect((error as { code?: unknown }).code).toBe(
+        "context_window_exceeded",
+      );
     } finally {
       client.dispose();
       await rm(root, { recursive: true, force: true });

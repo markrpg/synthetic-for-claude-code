@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-import type { ClaudeSettingsService } from "../configuration/claudeSettingsService.js";
 import type { CredentialService } from "../credentials/credentialService.js";
-import type { RedactingLogger } from "../logging/redactingLogger.js";
-import type { ReloadCoordinator } from "../reload/reloadCoordinator.js";
 
 export async function setSyntheticTokenCommand(
   credentialService: CredentialService,
@@ -22,7 +19,7 @@ export async function promptForSyntheticToken(
   const token = await vscode.window.showInputBox({
     title: "Synthetic API Token",
     prompt:
-      "Paste your token. It is stored in Cursor SecretStorage and copied to Claude Code settings while Synthetic is active.",
+      "Paste your token. It is stored in Cursor SecretStorage and supplied only to ModelHop's local bridge.",
     password: true,
     ignoreFocusOut: true,
     validateInput: (value) =>
@@ -87,49 +84,9 @@ export async function clearOpenAIApiKeyCommand(
 
 export async function clearSyntheticTokenCommand(
   credentialService: CredentialService,
-  settingsService: ClaudeSettingsService,
-  reloadCoordinator: ReloadCoordinator,
-  logger: RedactingLogger,
 ): Promise<void> {
-  const configuration = settingsService.read();
-  const configuredToken = configuration.global.variables.find(
-    (variable) => variable.name === "ANTHROPIC_AUTH_TOKEN",
-  )?.value;
-  if (configuredToken) {
-    logger.registerSecret(configuredToken);
-  }
-  const tokenIsInGlobalSettings = configuration.global.variables.some(
-    (variable) => variable.name === "ANTHROPIC_AUTH_TOKEN",
-  );
-
-  if (!tokenIsInGlobalSettings) {
-    await credentialService.clearSyntheticToken();
-    await vscode.window.showInformationMessage(
-      "Stored Synthetic API token cleared.",
-    );
-    return;
-  }
-
-  const action = await vscode.window.showWarningMessage(
-    "Clear the Synthetic token from SecretStorage and global Claude Code settings? Cursor must reload, and Synthetic authentication will stop.",
-    { modal: true },
-    "Clear and Reload Window",
-  );
-  if (action !== "Clear and Reload Window") {
-    return;
-  }
-
-  const withoutToken = configuration.global.variables.filter(
-    (variable) => variable.name !== "ANTHROPIC_AUTH_TOKEN",
-  );
-  await settingsService.write(withoutToken);
-  settingsService.verifyWritten(withoutToken);
   await credentialService.clearSyntheticToken();
-  await reloadCoordinator.markPending({
-    provider: "invalid",
-    switchedAt: Date.now(),
-    reason: "restore",
-    workspaceOverride: configuration.overrideScopes.length > 0,
-  });
-  await reloadCoordinator.reloadWindow();
+  await vscode.window.showInformationMessage(
+    "Stored Synthetic API token cleared.",
+  );
 }

@@ -98,10 +98,23 @@ export class ValidationService {
     );
     const baseUrl = values.get("ANTHROPIC_BASE_URL");
 
-    if (baseUrl) {
+    if (!baseUrl) {
+      issues.push("ANTHROPIC_BASE_URL is missing.");
+    } else {
       try {
-        if (new URL(baseUrl).protocol !== "https:") {
-          issues.push("Synthetic base URL must use HTTPS.");
+        const url = new URL(baseUrl);
+        const isConfiguredUpstream =
+          url.toString().replace(/\/$/, "") ===
+          new URL(expected.baseUrl).toString().replace(/\/$/, "");
+        const isModelHopBridge =
+          url.protocol === "http:" &&
+          (url.hostname === "127.0.0.1" ||
+            url.hostname === "localhost") &&
+          values.get("MODELHOP_PROVIDER") === "synthetic";
+        if (!isConfiguredUpstream && !isModelHopBridge) {
+          issues.push(
+            "Synthetic must use its configured HTTPS endpoint or the ModelHop loopback bridge.",
+          );
         }
       } catch {
         issues.push("Synthetic base URL must be a valid URL.");
@@ -109,6 +122,9 @@ export class ValidationService {
     }
 
     for (const [settingKey, environmentKey] of SYNTHETIC_EXPECTATIONS) {
+      if (settingKey === "baseUrl") {
+        continue;
+      }
       const expectedValue = expected[settingKey];
       if (!expectedValue.trim()) {
         issues.push(`The configured ${environmentKey} target is empty.`);
@@ -125,6 +141,12 @@ export class ValidationService {
       issues.push(
         "ANTHROPIC_API_KEY must be removed when Synthetic token authentication is active.",
       );
+    }
+    if (
+      values.has("MODELHOP_PROVIDER") &&
+      values.get("MODELHOP_PROVIDER") !== "synthetic"
+    ) {
+      issues.push("MODELHOP_PROVIDER does not match Synthetic.");
     }
   }
 

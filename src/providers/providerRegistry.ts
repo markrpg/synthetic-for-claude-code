@@ -67,6 +67,13 @@ export class ProviderRegistry {
     };
   }
 
+  public getSyntheticRouteSettings(): SyntheticSettings {
+    return {
+      ...this.getSyntheticSettings(),
+      baseUrl: this.getBridgeBaseUrl(),
+    };
+  }
+
   public getOpenAISettings(
     providerId: Extract<ProviderId, "openai-api" | "openai-codex">,
   ): OpenAIProviderSettings {
@@ -105,7 +112,10 @@ export class ProviderRegistry {
   public getProfile(providerId: ProviderId): ProviderProfile {
     switch (providerId) {
       case "synthetic":
-        return createSyntheticProfile(this.getSyntheticSettings());
+        return createSyntheticProfile(
+          this.getSyntheticRouteSettings(),
+          true,
+        );
       case "openai-api":
       case "openai-codex":
         return createOpenAIProfile(
@@ -160,9 +170,7 @@ export class ProviderRegistry {
     }
 
     const token =
-      providerId === "synthetic"
-        ? await this.credentialService.getSyntheticToken()
-        : await this.credentialService.getOrCreateBridgeAuthToken();
+      await this.credentialService.getOrCreateBridgeAuthToken();
     return [
       ...profile.environmentVariables.slice(0, 1),
       { name: "ANTHROPIC_AUTH_TOKEN", value: token },

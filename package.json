@@ -2,7 +2,7 @@
   "name": "claude-provider-switcher",
   "displayName": "ModelHop for Claude Code",
   "description": "Run Claude Code with Anthropic, Synthetic, OpenAI API, or an experimental ChatGPT/Codex bridge, with per-role model routing and live usage.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "icon": "media/modelhop-icon.png",
   "license": "MIT",
   "publisher": "private",
@@ -55,7 +55,7 @@
     "compile:integration": "tsc -p tsconfig.integration.json",
     "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run compile",
-    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out modelhop-for-claude-code-2.0.0.vsix"
+    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out modelhop-for-claude-code-2.1.0.vsix"
   },
   "contributes": {
     "commands": [
@@ -157,6 +157,32 @@
           "type": "boolean",
           "default": true,
           "description": "Silently normalize incompatible tool metadata and unsigned thinking blocks before provider transitions."
+        },
+        "modelHop.contextManagement.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically compact completed conversation history before a bridged provider reaches its context limit."
+        },
+        "modelHop.contextManagement.thresholdPercent": {
+          "type": "number",
+          "default": 72,
+          "minimum": 50,
+          "maximum": 90,
+          "description": "Percentage of the selected model's context window at which ModelHop begins automatic compaction."
+        },
+        "modelHop.contextManagement.fallbackContextTokens": {
+          "type": "number",
+          "default": 128000,
+          "minimum": 32768,
+          "maximum": 2000000,
+          "description": "Conservative context-window fallback when a provider does not report the selected model's capacity."
+        },
+        "modelHop.contextManagement.retainRecentTokens": {
+          "type": "number",
+          "default": 32000,
+          "minimum": 8192,
+          "maximum": 262144,
+          "description": "Approximate amount of recent conversation history ModelHop tries to retain verbatim after compaction."
         },
         "modelHop.synthetic.baseUrl": {
           "type": "string",

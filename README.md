@@ -36,7 +36,7 @@ Synthetic exposes Kimi K3 as `hf:moonshotai/Kimi-K3`. ModelHop uses that canonic
 ## Install
 
 1. Install [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).
-2. Download `modelhop-for-claude-code-2.0.0.vsix` from the [latest release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+2. Download `modelhop-for-claude-code-2.1.0.vsix` from the [latest release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 3. Run **Extensions: Install from VSIX...** in Cursor or VS Code.
 4. Select the VSIX and reload the editor.
 
@@ -99,9 +99,24 @@ Provider responses can contain tool IDs, tool names, result links, and thinking 
 
 This keeps the same Claude Code conversation usable after a switch. The repair runs locally and does not send transcript files anywhere.
 
-## Local OpenAI bridge
+## Automatic context management
 
-ModelHop bundles an Anthropic-compatible server on `127.0.0.1`. It supports `/v1/messages` and `/v1/messages/count_tokens`, text, images, streaming, parallel tool calls, cancellation, and Claude-compatible errors.
+Synthetic and both OpenAI routes pass through ModelHop's local compatibility bridge. Before each model request, the bridge estimates the complete Claude request—including system instructions, tool schemas, images, and reserved output—and compacts only when the selected model is nearing its context limit.
+
+- Synthetic uses its token-count endpoint and live model context metadata when available.
+- Codex supplies its model context window through app-server token-usage events.
+- OpenAI API and providers that omit context metadata use the configurable conservative fallback.
+- Completed old messages are summarized while recent history remains verbatim. Tool calls, parallel calls, and all linked results are kept as atomic units.
+- Summaries are hash-bound to the exact transcript prefix, encrypted on disk, and reused on later turns without altering the Claude Code transcript.
+- A provider context rejection at a safe transcript boundary triggers one more aggressive compaction attempt. A live Codex tool round-trip is never rewritten. If the request still cannot fit safely, ModelHop returns a terminal context error instead of repeatedly retrying it.
+
+Compaction happens automatically between Claude Code requests, including after switching providers; it does not force a new chat. The summary request uses the active provider's Haiku-role model and therefore counts against that provider's quota or billing. Synthetic and both OpenAI routes do not consume Anthropic usage.
+
+The defaults begin compaction at 72% of the model context window and retain about 32,000 recent tokens. Advanced controls are available as `modelHop.contextManagement.enabled`, `thresholdPercent`, `fallbackContextTokens`, and `retainRecentTokens`.
+
+## Local compatibility bridge
+
+ModelHop bundles an Anthropic-compatible server on `127.0.0.1`. Synthetic and both OpenAI routes use it for `/v1/messages` and `/v1/messages/count_tokens`, text, images, streaming, parallel tool calls, cancellation, context management, and Claude-compatible errors.
 
 For OpenAI API, the bridge translates requests to the Responses API with `store: false`. Tool schemas use `strict: false`. Incompatible tool names and IDs are mapped deterministically. Encrypted reasoning items are retained in an encrypted local continuity store; ModelHop never fabricates Anthropic thinking signatures.
 
@@ -134,7 +149,7 @@ npm run check
 npm run package
 ```
 
-`npm run package` creates `modelhop-for-claude-code-2.0.0.vsix` locally. Publishing, tagging, and GitHub releases are separate actions.
+`npm run package` creates `modelhop-for-claude-code-2.1.0.vsix` locally. Publishing, tagging, and GitHub releases are separate actions.
 
 ## License
 

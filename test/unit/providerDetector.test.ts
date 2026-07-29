@@ -50,8 +50,12 @@ describe("detectProvider", () => {
     ).toBe("custom");
   });
 
-  it("detects both ModelHop bridge routes by their ownership marker", () => {
-    for (const provider of ["openai-api", "openai-codex"] as const) {
+  it("detects all ModelHop bridge routes by their ownership marker", () => {
+    for (const provider of [
+      "synthetic",
+      "openai-api",
+      "openai-codex",
+    ] as const) {
       expect(
         detectProvider(
           [

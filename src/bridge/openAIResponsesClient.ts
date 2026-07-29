@@ -10,6 +10,7 @@ import {
   type ReasoningLookup,
   type TranslationPlan,
 } from "./anthropicOpenAITranslator.js";
+import { BridgeRequestError } from "./bridgeError.js";
 import { toAnthropicToolId } from "./toolMapping.js";
 import type {
   RateLimitSnapshot,
@@ -84,8 +85,11 @@ function usageFromResponse(response: unknown): Partial<TokenUsageSnapshot> {
   };
 }
 
-async function openAIError(response: Response): Promise<Error> {
+async function openAIError(
+  response: Response,
+): Promise<BridgeRequestError> {
   let detail = "";
+  let code: string | undefined;
   try {
     const body = (await response.json()) as Record<string, unknown>;
     const error =
@@ -93,13 +97,53 @@ async function openAIError(response: Response): Promise<Error> {
         ? (body.error as Record<string, unknown>)
         : undefined;
     detail = typeof error?.message === "string" ? error.message : "";
+    code =
+      typeof error?.code === "string"
+        ? error.code
+        : typeof error?.type === "string"
+          ? error.type
+          : undefined;
   } catch {
     detail = "";
   }
-  return new Error(
+  const message =
     detail
       ? `OpenAI API ${response.status}: ${detail}`
-      : `OpenAI API request failed with status ${response.status}.`,
+      : `OpenAI API request failed with status ${response.status}.`;
+  if (response.status === 401) {
+    return new BridgeRequestError(
+      message,
+      401,
+      "authentication_error",
+      code,
+    );
+  }
+  if (response.status === 403) {
+    return new BridgeRequestError(message, 403, "permission_error", code);
+  }
+  if (response.status === 429) {
+    return new BridgeRequestError(message, 429, "rate_limit_error", code);
+  }
+  if (
+    response.status === 400 &&
+    (code === "context_length_exceeded" ||
+      /context window|maximum context length/i.test(detail))
+  ) {
+    return new BridgeRequestError(
+      message,
+      400,
+      "invalid_request_error",
+      "context_window_exceeded",
+    );
+  }
+  if (response.status >= 500) {
+    return new BridgeRequestError(message, 502, "api_error", code);
+  }
+  return new BridgeRequestError(
+    message,
+    response.status,
+    "invalid_request_error",
+    code,
   );
 }
 
@@ -197,6 +241,38 @@ export class OpenAIResponsesClient {
       estimateOpenAICost(plan.model, usage),
     );
     return translated;
+  }
+
+  public async summarize(
+    transcript: string,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const response = await this.complete(
+      {
+        model: this.settings.haikuModel,
+        max_tokens: 4_096,
+        system:
+          "Summarize older Claude Code conversation context for another coding model. Preserve concrete requirements, decisions, file paths, code changes, commands and results, errors, unresolved work, and tool outcomes. Do not add facts. Do not include private reasoning. Return only the compact factual summary.",
+        messages: [{ role: "user", content: transcript }],
+      },
+      signal,
+    );
+    const content = Array.isArray(response.content)
+      ? response.content
+      : [];
+    return content
+      .filter(
+        (block): block is Record<string, unknown> =>
+          typeof block === "object" &&
+          block !== null &&
+          (block as Record<string, unknown>).type === "text",
+      )
+      .map((block) =>
+        typeof block.text === "string" ? block.text : "",
+      )
+      .filter(Boolean)
+      .join("\n")
+      .trim();
   }
 
   public async *stream(

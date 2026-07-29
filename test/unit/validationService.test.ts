@@ -97,6 +97,31 @@ describe("ValidationService", () => {
     ).toEqual(synthetic);
   });
 
+  it("accepts Synthetic through the ModelHop loopback bridge", () => {
+    const bridgedSettings = {
+      ...DEFAULT_SYNTHETIC_SETTINGS,
+      baseUrl: "http://127.0.0.1:17777",
+    };
+    const variables = [
+      ...createSyntheticProfile(
+        bridgedSettings,
+        true,
+      ).environmentVariables.slice(0, 2),
+      { name: "ANTHROPIC_AUTH_TOKEN", value: "bridge-only-token" },
+      ...createSyntheticProfile(
+        bridgedSettings,
+        true,
+      ).environmentVariables.slice(2),
+    ];
+    expect(
+      service.validateVariables(
+        "synthetic",
+        variables,
+        DEFAULT_SYNTHETIC_SETTINGS,
+      ),
+    ).toEqual(variables);
+  });
+
   it("accepts a valid Anthropic profile with unrelated variables", () => {
     const variables = mergeEnvironmentVariables(
       [{ name: "MCP_TIMEOUT", value: "30000" }],

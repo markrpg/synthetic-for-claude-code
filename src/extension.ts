@@ -294,6 +294,12 @@ export async function activate(
     ["modelHop.setSyntheticToken", "claudeProvider.setSyntheticToken"],
     async () => {
       if (await setSyntheticTokenCommand(credentialService)) {
+        if (currentProvider() === "synthetic") {
+          await bridgeManager.prepare(
+            "synthetic",
+            providerRegistry.getSyntheticSettings(),
+          );
+        }
         void quotaStatusBarController.refresh();
       }
     },
@@ -304,12 +310,22 @@ export async function activate(
       "claudeProvider.clearSyntheticToken",
     ],
     async () => {
-      await clearSyntheticTokenCommand(
-        credentialService,
-        settingsService,
-        reloadCoordinator,
-        logger,
-      );
+      if (currentProvider() === "synthetic") {
+        const action = await vscode.window.showWarningMessage(
+          "Clearing the active Synthetic token will switch Claude Code back to Anthropic and reload the window.",
+          { modal: true },
+          "Clear and Switch",
+        );
+        if (action !== "Clear and Switch") {
+          return;
+        }
+        await clearSyntheticTokenCommand(credentialService);
+        await switchCommand.execute("anthropic", {
+          skipConfirmation: true,
+        });
+        return;
+      }
+      await clearSyntheticTokenCommand(credentialService);
     },
   );
   register("modelHop.setOpenAIKey", async () => {
@@ -437,11 +453,17 @@ export async function activate(
   providerUsageController.start();
   const detected = currentProvider();
   logger.info(`Detected provider: ${detected}`);
-  if (detected === "openai-api" || detected === "openai-codex") {
+  if (
+    detected === "synthetic" ||
+    detected === "openai-api" ||
+    detected === "openai-codex"
+  ) {
     try {
       await bridgeManager.prepare(
         detected,
-        providerRegistry.getOpenAISettings(detected),
+        detected === "synthetic"
+          ? providerRegistry.getSyntheticSettings()
+          : providerRegistry.getOpenAISettings(detected),
       );
     } catch (error) {
       logger.error(error);

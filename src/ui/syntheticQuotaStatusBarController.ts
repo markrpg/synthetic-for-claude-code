@@ -120,6 +120,7 @@ export class SyntheticQuotaStatusBarController
     const currentProvider = detectProvider(
       this.settingsService.read().effectiveRawValue,
       this.providerRegistry.getSyntheticSettings().baseUrl,
+      this.providerRegistry.getSyntheticRouteSettings().baseUrl,
     );
     if (currentProvider !== "synthetic" && !forceVisible) {
       this.statusItem.hide();

@@ -8,7 +8,11 @@ import type { CodexRuntimeManager } from "../codex/codexRuntimeManager.js";
 import type { CredentialService } from "../credentials/credentialService.js";
 import type { RedactingLogger } from "../logging/redactingLogger.js";
 import type { OpenAIModel } from "../openai/openAIModelService.js";
-import type { OpenAIProviderSettings } from "../providers/types.js";
+import { readModelHopSetting } from "../configuration/modelHopConfiguration.js";
+import type {
+  OpenAIProviderSettings,
+  SyntheticSettings,
+} from "../providers/types.js";
 import type {
   BridgeConfiguration,
   BridgeHealth,
@@ -103,29 +107,64 @@ export class BridgeManager {
 
   public async prepare(
     provider: BridgeProviderId,
-    settings: OpenAIProviderSettings,
+    settings: OpenAIProviderSettings | SyntheticSettings,
     options: { validateModels?: boolean } = {},
   ): Promise<void> {
     await this.ensureDaemon();
-    const configuration: BridgeConfiguration = {
-      provider,
-      bridgeAuthToken: this.bridgeToken,
-      openAISettings: settings,
+    const contextManagement = {
+      enabled: readModelHopSetting(
+        "contextManagement.enabled",
+        true,
+      ),
+      thresholdPercent: readModelHopSetting(
+        "contextManagement.thresholdPercent",
+        72,
+      ),
+      fallbackContextTokens: readModelHopSetting(
+        "contextManagement.fallbackContextTokens",
+        128_000,
+      ),
+      retainRecentTokens: readModelHopSetting(
+        "contextManagement.retainRecentTokens",
+        32_000,
+      ),
     };
-    if (provider === "openai-api") {
-      configuration.openAIApiKey =
-        await this.credentials.getOpenAIApiKey();
+    let configuration: BridgeConfiguration;
+    if (provider === "synthetic") {
+      configuration = {
+        provider,
+        bridgeAuthToken: this.bridgeToken,
+        contextManagement,
+        syntheticToken: await this.credentials.getSyntheticToken(),
+        syntheticSettings: settings,
+      };
+    } else if (provider === "openai-api") {
+      const openAISettings = settings as OpenAIProviderSettings;
+      const openAIApiKey = await this.credentials.getOpenAIApiKey();
+      configuration = {
+        provider,
+        bridgeAuthToken: this.bridgeToken,
+        contextManagement,
+        openAIApiKey,
+        openAISettings,
+      };
       if (options.validateModels !== false) {
         await this.validateOpenAIApiModels(
-          configuration.openAIApiKey,
-          settings,
+          openAIApiKey,
+          openAISettings,
         );
       }
     } else {
+      const openAISettings = settings as OpenAIProviderSettings;
       await this.acknowledgeExperimentalCodex();
-      configuration.codexExecutable =
-        await this.runtimeManager.ensureInstalled();
-      configuration.codexWorkingDirectory = this.codexWorkingDirectory;
+      configuration = {
+        provider,
+        bridgeAuthToken: this.bridgeToken,
+        contextManagement,
+        openAISettings,
+        codexExecutable: await this.runtimeManager.ensureInstalled(),
+        codexWorkingDirectory: this.codexWorkingDirectory,
+      };
     }
     await this.control<unknown>("/control/configure", {
       method: "POST",

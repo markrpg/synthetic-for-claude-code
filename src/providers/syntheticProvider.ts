@@ -11,6 +11,7 @@ export const DEFAULT_SYNTHETIC_SETTINGS: SyntheticSettings = {
 
 export function createSyntheticProfile(
   settings: SyntheticSettings = DEFAULT_SYNTHETIC_SETTINGS,
+  bridged = false,
 ): ProviderProfile {
   return {
     id: "synthetic",
@@ -21,6 +22,9 @@ export function createSyntheticProfile(
     requiresCredential: true,
     environmentVariables: [
       { name: "ANTHROPIC_BASE_URL", value: settings.baseUrl },
+      ...(bridged
+        ? [{ name: "MODELHOP_PROVIDER", value: "synthetic" }]
+        : []),
       { name: "ANTHROPIC_MODEL", value: settings.defaultModel },
       {
         name: "ANTHROPIC_DEFAULT_OPUS_MODEL",

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0 (local update)
+
+- Added automatic provider-aware context management for Synthetic, OpenAI API, and Experimental ChatGPT/Codex routes without forcing a new Claude Code conversation.
+- Routed Synthetic through the loopback bridge while keeping its API token in SecretStorage and preserving live quota reporting.
+- Added exact Synthetic token counting and live model context discovery where the provider reports them, Codex app-server context-window discovery, and conservative fallback budgeting.
+- Added encrypted, hash-bound context summaries that preserve recent messages and keep tool calls, parallel calls, and linked results as indivisible transcript units.
+- Added a single forced compaction recovery at safe transcript boundaries when an upstream provider reports context exhaustion; live Codex tool round-trips are never rewritten, and context-limit failures are terminal rather than treated as temporary server errors.
+- Passed configured per-role reasoning effort to Codex turns and classified Codex authentication, usage, overload, policy, sandbox, and context failures as Claude-compatible errors.
+- Added context, encryption, tool-boundary, Synthetic bridge, OpenAI error, and Codex context/effort tests.
+
 ## 2.0.0 (local release candidate)
 
 - Renamed the public extension to **ModelHop for Claude Code** while keeping the existing extension ID and legacy `claudeProvider.*` settings.

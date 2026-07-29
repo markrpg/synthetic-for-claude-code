@@ -49,7 +49,9 @@ export function detectProvider(
     : undefined;
   if (normalisedBridgeUrl && normalisedUrl === normalisedBridgeUrl) {
     const marker = map.get("MODELHOP_PROVIDER");
-    return marker === "openai-api" || marker === "openai-codex"
+    return marker === "synthetic" ||
+      marker === "openai-api" ||
+      marker === "openai-codex"
       ? marker
       : "invalid";
   }

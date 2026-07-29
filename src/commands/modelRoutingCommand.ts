@@ -76,6 +76,7 @@ export class ModelRoutingCommand {
     const currentProvider = detectProvider(
       this.settingsService.read().effectiveRawValue,
       this.providerRegistry.getSyntheticSettings().baseUrl,
+      this.providerRegistry.getSyntheticRouteSettings().baseUrl,
     );
     if (currentProvider !== "synthetic") {
       await vscode.window.showInformationMessage(

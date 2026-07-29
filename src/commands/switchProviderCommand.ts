@@ -152,14 +152,12 @@ export class SwitchProviderCommand {
         configuration.global.variables,
       )
     ) {
-      if (
-        (providerId === "openai-api" ||
-          providerId === "openai-codex") &&
-        this.bridgeManager
-      ) {
+      if (providerId !== "anthropic" && this.bridgeManager) {
         await this.bridgeManager.prepare(
           providerId,
-          this.providerRegistry.getOpenAISettings(providerId),
+          providerId === "synthetic"
+            ? this.providerRegistry.getSyntheticSettings()
+            : this.providerRegistry.getOpenAISettings(providerId),
         );
       }
       const overrideNote = continuedPastOverride
@@ -184,20 +182,18 @@ export class SwitchProviderCommand {
       return;
     }
 
-    if (
-      (providerId === "openai-api" ||
-        providerId === "openai-codex") &&
-      this.bridgeManager
-    ) {
+    if (providerId !== "anthropic" && this.bridgeManager) {
       await this.bridgeManager.prepare(
         providerId,
-        this.providerRegistry.getOpenAISettings(providerId),
+        providerId === "synthetic"
+          ? this.providerRegistry.getSyntheticSettings()
+          : this.providerRegistry.getOpenAISettings(providerId),
       );
     }
     if (
-      providerId !== "openai-api" &&
-      providerId !== "openai-codex" &&
-      (currentProvider === "openai-api" ||
+      providerId === "anthropic" &&
+      (currentProvider === "synthetic" ||
+        currentProvider === "openai-api" ||
         currentProvider === "openai-codex")
     ) {
       await this.bridgeManager?.deactivate();

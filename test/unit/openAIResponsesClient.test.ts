@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenAIResponsesClient } from "../../src/bridge/openAIResponsesClient.js";
+import { BridgeRequestError } from "../../src/bridge/bridgeError.js";
 import { DEFAULT_OPENAI_SETTINGS } from "../../src/providers/openAIProvider.js";
 
 function reasoningStore() {
@@ -177,5 +178,40 @@ describe("OpenAIResponsesClient", () => {
         .trimEnd()
         .endsWith('event: message_stop\ndata: {"type":"message_stop"}'),
     ).toBe(true);
+  });
+
+  it("classifies context exhaustion as a terminal request error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "context_length_exceeded",
+              message: "Maximum context length exceeded.",
+            },
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    const client = new OpenAIResponsesClient(
+      "secret-key",
+      DEFAULT_OPENAI_SETTINGS,
+      reasoningStore(),
+      { record: vi.fn() },
+    );
+
+    const error = await client
+      .complete({
+        model: "gpt-5.6-sol",
+        messages: [{ role: "user", content: "Continue." }],
+      })
+      .catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(BridgeRequestError);
+    expect((error as BridgeRequestError).status).toBe(400);
+    expect((error as BridgeRequestError).code).toBe(
+      "context_window_exceeded",
+    );
   });
 });

@@ -9,9 +9,16 @@ import {
   type BridgeHealth,
 } from "./types.js";
 import type { AnthropicRequest } from "./anthropicOpenAITranslator.js";
+import { BridgeRequestError, isContextWindowError } from "./bridgeError.js";
 import { CodexAppServerClient } from "./codexAppServerClient.js";
+import {
+  ContextManager,
+  EncryptedContextStore,
+} from "./contextManager.js";
 import { OpenAIResponsesClient } from "./openAIResponsesClient.js";
 import { EncryptedReasoningStore } from "./reasoningStore.js";
+import { SyntheticMessagesClient } from "./syntheticMessagesClient.js";
+import { estimateAnthropicRequestTokens } from "./tokenBudget.js";
 import { UsageTracker } from "./usageTracker.js";
 
 const MAX_BODY_BYTES = 32 * 1024 * 1024;
@@ -100,9 +107,21 @@ function json(
 function errorResponse(response: ServerResponse, error: unknown): void {
   const message =
     error instanceof Error ? error.message : "The ModelHop bridge failed.";
-  json(response, 500, {
+  const status =
+    error instanceof BridgeRequestError ? error.status : 500;
+  const type =
+    error instanceof BridgeRequestError
+      ? error.anthropicType
+      : "api_error";
+  json(response, status, {
     type: "error",
-    error: { type: "api_error", message },
+    error: {
+      type,
+      message,
+      ...(error instanceof BridgeRequestError && error.code
+        ? { code: error.code }
+        : {}),
+    },
   });
 }
 
@@ -113,11 +132,6 @@ function bearer(request: IncomingMessage): string | undefined {
   }
   const apiKey = request.headers["x-api-key"];
   return typeof apiKey === "string" ? apiKey : undefined;
-}
-
-function approximateTokens(value: unknown): number {
-  const text = JSON.stringify(value);
-  return Math.max(1, Math.ceil(text.length / 4));
 }
 
 function anthropicSSE(responseBody: Record<string, unknown>): string[] {
@@ -206,9 +220,12 @@ function anthropicSSE(responseBody: Record<string, unknown>): string[] {
 class BridgeServer {
   private configuration: BridgeConfiguration | undefined;
   private codex: CodexAppServerClient | undefined;
+  private synthetic: SyntheticMessagesClient | undefined;
   private readonly usage = new UsageTracker();
   private lastActivity = Date.now();
   private readonly reasoningStore: EncryptedReasoningStore;
+  private readonly contextStore: EncryptedContextStore;
+  private readonly contextManager: ContextManager;
 
   public constructor(
     private readonly args: Arguments,
@@ -218,11 +235,19 @@ class BridgeServer {
       path.join(args.stateDirectory, "encrypted-reasoning.json"),
       controlToken,
     );
+    this.contextStore = new EncryptedContextStore(
+      path.join(args.stateDirectory, "encrypted-context.json"),
+      controlToken,
+    );
+    this.contextManager = new ContextManager(this.contextStore);
   }
 
   public async start(): Promise<void> {
     await mkdir(this.args.stateDirectory, { recursive: true, mode: 0o700 });
-    await this.reasoningStore.load();
+    await Promise.all([
+      this.reasoningStore.load(),
+      this.contextStore.load(),
+    ]);
     const server = createServer((request, response) => {
       this.lastActivity = Date.now();
       void this.handle(request, response);
@@ -296,8 +321,15 @@ class BridgeServer {
         request.method === "POST" &&
         url.pathname === "/v1/messages/count_tokens"
       ) {
-        const body = await readJson(request);
-        json(response, 200, { input_tokens: approximateTokens(body) });
+        const body = (await readJson(request)) as AnthropicRequest;
+        const upstreamCount =
+          this.configuration?.provider === "synthetic"
+            ? await this.synthetic?.countTokens(body)
+            : undefined;
+        json(response, 200, {
+          input_tokens:
+            upstreamCount ?? estimateAnthropicRequestTokens(body),
+        });
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/messages") {
@@ -324,18 +356,22 @@ class BridgeServer {
   ): Promise<void> {
     if (request.method === "POST" && pathname === "/control/configure") {
       const configuration = (await readJson(request)) as BridgeConfiguration;
-      if (
-        configuration.provider !== "openai-api" &&
-        configuration.provider !== "openai-codex"
-      ) {
+      if (!["synthetic", "openai-api", "openai-codex"].includes(
+        configuration.provider,
+      )) {
         throw new Error("Unsupported bridge provider.");
       }
       const previous = this.configuration;
       this.usage.setProvider(configuration.provider);
-      if (configuration.provider === "openai-codex") {
-        if (!configuration.codexExecutable || !configuration.codexWorkingDirectory) {
-          throw new Error("The managed Codex runtime is not configured.");
-        }
+      if (configuration.provider === "synthetic") {
+        this.codex?.dispose();
+        this.codex = undefined;
+        this.synthetic = new SyntheticMessagesClient(
+          configuration.syntheticToken,
+          configuration.syntheticSettings,
+        );
+      } else if (configuration.provider === "openai-codex") {
+        this.synthetic = undefined;
         const canReuse =
           previous?.provider === "openai-codex" &&
           previous.codexExecutable === configuration.codexExecutable &&
@@ -353,6 +389,7 @@ class BridgeServer {
       } else {
         this.codex?.dispose();
         this.codex = undefined;
+        this.synthetic = undefined;
       }
       this.configuration = configuration;
       json(response, 200, { configured: true });
@@ -428,58 +465,151 @@ class BridgeServer {
         abortController.abort();
       }
     });
-    if (configuration.provider === "openai-api") {
-      if (!configuration.openAIApiKey) {
-        throw new Error("The OpenAI API key is unavailable.");
-      }
-      const client = new OpenAIResponsesClient(
+    const openAIClient =
+      configuration.provider === "openai-api"
+        ? new OpenAIResponsesClient(
         configuration.openAIApiKey,
         configuration.openAISettings,
         this.reasoningStore,
         this.usage,
-      );
-      if (request.stream === true) {
-        const stream = client.stream(request, abortController.signal);
-        const first = await stream.next();
-        response.writeHead(200, {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache, no-store",
-          Connection: "keep-alive",
-        });
-        if (!first.done) {
-          response.write(first.value);
-        }
-        for await (const frame of stream) {
-          response.write(frame);
-        }
-        response.end();
-      } else {
-        json(
-          response,
-          200,
-          await client.complete(request, abortController.signal),
-        );
-      }
-      return;
-    }
+        )
+        : undefined;
+    const liveCodexToolContinuation =
+      configuration.provider === "openai-codex" &&
+      this.hasToolResults(request);
 
-    const result = await this.requireCodex().run(
-      request,
-      configuration.openAISettings,
-      abortController.signal,
-    );
-    if (request.stream === true) {
-      response.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-store",
-        Connection: "keep-alive",
-      });
-      for (const frame of anthropicSSE(result)) {
-        response.write(frame);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const contextWindow =
+          configuration.provider === "synthetic"
+            ? await this.requireSynthetic().contextWindow(request.model)
+            : configuration.provider === "openai-codex"
+              ? this.requireCodex().contextWindow(request.model)
+              : undefined;
+        const prepared = liveCodexToolContinuation
+          ? request
+          : (
+              await this.contextManager.prepare(request, {
+                settings: configuration.contextManagement,
+                contextWindow,
+                signal: abortController.signal,
+                force: attempt === 1,
+                tokenCounter:
+                  configuration.provider === "synthetic"
+                    ? (value, signal) =>
+                        this.requireSynthetic().countTokens(
+                          value,
+                          signal,
+                        )
+                    : undefined,
+                summarizer: (transcript, signal) => {
+                  if (configuration.provider === "synthetic") {
+                    return this.requireSynthetic().summarize(
+                      transcript,
+                      signal,
+                    );
+                  }
+                  if (configuration.provider === "openai-api") {
+                    return openAIClient!.summarize(transcript, signal);
+                  }
+                  return this.requireCodex().summarize(
+                    transcript,
+                    configuration.openAISettings,
+                    signal,
+                  );
+                },
+              })
+            ).request;
+
+        if (configuration.provider === "synthetic") {
+          if (request.stream === true) {
+            const upstream = await this.requireSynthetic().fetchStream(
+              prepared,
+              abortController.signal,
+            );
+            response.writeHead(200, {
+              "Content-Type":
+                upstream.headers.get("content-type") ??
+                "text/event-stream",
+              "Cache-Control": "no-cache, no-store",
+              Connection: "keep-alive",
+            });
+            await this.pipeResponse(upstream, response);
+          } else {
+            json(
+              response,
+              200,
+              await this.requireSynthetic().complete(
+                prepared,
+                abortController.signal,
+              ),
+            );
+          }
+          return;
+        }
+
+        if (configuration.provider === "openai-api") {
+          if (request.stream === true) {
+            const stream = openAIClient!.stream(
+              prepared,
+              abortController.signal,
+            );
+            const first = await stream.next();
+            response.writeHead(200, {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-store",
+              Connection: "keep-alive",
+            });
+            if (!first.done) {
+              response.write(first.value);
+            }
+            for await (const frame of stream) {
+              response.write(frame);
+            }
+            response.end();
+          } else {
+            json(
+              response,
+              200,
+              await openAIClient!.complete(
+                prepared,
+                abortController.signal,
+              ),
+            );
+          }
+          return;
+        }
+
+        const result = await this.requireCodex().run(
+          prepared,
+          configuration.openAISettings,
+          abortController.signal,
+        );
+        if (request.stream === true) {
+          response.writeHead(200, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache, no-store",
+            Connection: "keep-alive",
+          });
+          for (const frame of anthropicSSE(result)) {
+            response.write(frame);
+          }
+          response.end();
+        } else {
+          json(response, 200, result);
+        }
+        return;
+      } catch (error) {
+        if (
+          attempt === 0 &&
+          !liveCodexToolContinuation &&
+          !response.headersSent &&
+          isContextWindowError(error)
+        ) {
+          continue;
+        }
+        throw error;
       }
-      response.end();
-    } else {
-      json(response, 200, result);
     }
   }
 
@@ -488,6 +618,64 @@ class BridgeServer {
       throw new Error("The Codex bridge is not configured.");
     }
     return this.codex;
+  }
+
+  private requireSynthetic(): SyntheticMessagesClient {
+    if (!this.synthetic) {
+      throw new Error("The Synthetic bridge is not configured.");
+    }
+    return this.synthetic;
+  }
+
+  private hasToolResults(request: AnthropicRequest): boolean {
+    if (!Array.isArray(request.messages) || request.messages.length === 0) {
+      return false;
+    }
+    const messages = request.messages as unknown[];
+    const last: unknown = messages.at(-1);
+    if (typeof last !== "object" || last === null) {
+      return false;
+    }
+    const content = (last as Record<string, unknown>).content;
+    return (
+      Array.isArray(content) &&
+      content.some(
+        (block) =>
+          typeof block === "object" &&
+          block !== null &&
+          (block as Record<string, unknown>).type === "tool_result",
+      )
+    );
+  }
+
+  private async pipeResponse(
+    upstream: Response,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (!upstream.body) {
+      throw new BridgeRequestError(
+        "Synthetic returned an empty streaming response.",
+        502,
+        "api_error",
+      );
+    }
+    const reader = (
+      upstream.body as unknown as {
+        getReader(): {
+          read(): Promise<{ done: boolean; value?: Uint8Array }>;
+        };
+      }
+    ).getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        response.write(value);
+      }
+    }
+    response.end();
   }
 }
 

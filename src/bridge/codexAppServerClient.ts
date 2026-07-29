@@ -5,10 +5,12 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import type { OpenAIProviderSettings } from "../providers/types.js";
 import {
+  reasoningEffortForModel,
   systemToText,
   translateAnthropicMessages,
   type AnthropicRequest,
 } from "./anthropicOpenAITranslator.js";
+import { codexTurnError } from "./bridgeError.js";
 import {
   buildToolNameMapping,
   toAnthropicToolId,
@@ -262,6 +264,7 @@ export class CodexAppServerClient {
   private readonly pending = new Map<string | number, PendingRequest>();
   private readonly sessions = new Map<string, CodexSession>();
   private readonly toolCallSessions = new Map<string, CodexSession>();
+  private readonly modelContextWindows = new Map<string, number>();
 
   public constructor(
     private readonly executable: string,
@@ -346,7 +349,7 @@ export class CodexAppServerClient {
       clientInfo: {
         name: "modelhop",
         title: "ModelHop for Claude Code",
-        version: "2.0.0",
+        version: "2.1.0",
       },
       capabilities: { experimentalApi: true },
     });
@@ -489,6 +492,7 @@ export class CodexAppServerClient {
       threadId,
       input: lastUserInput(request.messages),
       model,
+      effort: reasoningEffortForModel(model, settings),
     }));
     const turn = record(turnStart.turn);
     session.turnId =
@@ -498,6 +502,41 @@ export class CodexAppServerClient {
           ? turnStart.turnId
           : undefined;
     return this.waitForPhase(session, signal);
+  }
+
+  public contextWindow(model: unknown): number | undefined {
+    return typeof model === "string"
+      ? this.modelContextWindows.get(model)
+      : undefined;
+  }
+
+  public async summarize(
+    transcript: string,
+    settings: OpenAIProviderSettings,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const response = await this.run(
+      {
+        model: settings.haikuModel,
+        max_tokens: 4_096,
+        system:
+          "Summarize older Claude Code conversation context for another coding model. Preserve concrete requirements, decisions, file paths, code changes, commands and results, errors, unresolved work, and tool outcomes. Do not add facts. Do not include private reasoning. Return only the compact factual summary.",
+        messages: [{ role: "user", content: transcript }],
+      },
+      settings,
+      signal,
+    );
+    const content = Array.isArray(response.content)
+      ? response.content.filter(isRecord)
+      : [];
+    return content
+      .filter(
+        (block) =>
+          block.type === "text" && typeof block.text === "string",
+      )
+      .map((block) => block.text as string)
+      .join("\n")
+      .trim();
   }
 
   public dispose(): void {
@@ -685,6 +724,19 @@ export class CodexAppServerClient {
     const threadId =
       typeof params.threadId === "string" ? params.threadId : "";
     const session = this.sessions.get(threadId);
+    if (method === "thread/tokenUsage/updated") {
+      const tokenUsage = record(params.tokenUsage);
+      const contextWindow = tokenUsage.modelContextWindow;
+      if (
+        session &&
+        typeof contextWindow === "number" &&
+        Number.isFinite(contextWindow) &&
+        contextWindow > 0
+      ) {
+        this.modelContextWindows.set(session.model, contextWindow);
+      }
+      return;
+    }
     if (!session) {
       return;
     }
@@ -696,11 +748,7 @@ export class CodexAppServerClient {
     } else if (method === "turn/completed") {
       const turn = record(params.turn);
       if (turn.status === "failed") {
-        session.fail(
-          new Error(
-            `Codex turn failed: ${JSON.stringify(turn.error ?? "unknown error")}`,
-          ),
-        );
+        session.fail(codexTurnError(turn.error));
       } else {
         session.finish(turn.usage);
       }

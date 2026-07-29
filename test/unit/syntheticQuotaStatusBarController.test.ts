@@ -78,6 +78,9 @@ function createController(getQuota = vi.fn()) {
     getSyntheticSettings: vi.fn(() => ({
       baseUrl: SYNTHETIC_BASE_URL,
     })),
+    getSyntheticRouteSettings: vi.fn(() => ({
+      baseUrl: "http://127.0.0.1:17777",
+    })),
   } as unknown as ProviderRegistry;
   const credentialService = {
     hasSyntheticToken: vi.fn(async () => true),
