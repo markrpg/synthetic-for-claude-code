@@ -12,6 +12,10 @@ This project targets the graphical Claude Code editor extension. It does not ins
 
 Synthetic currently lists Kimi K3 under `hf:moonshotai/Kimi-K3`. This extension uses that actual model ID by default for Claude Code's Default, Opus, Sonnet, and subagent routes, so the model is identifiable instead of appearing only as a generic `syn:` route.
 
+Claude Code reporting that the active session is routed through Synthetic to Kimi K3:
+
+![Claude Code reports that the active session is running on hf:moonshotai/Kimi-K3](docs/images/claude-code-kimi-k3-confirmation.png)
+
 The model picker leads with readable names such as **Kimi K3** and **GLM 4.7 Flash**, with the exact `hf:` API identifier shown as secondary detail. Advanced users can still choose a `syn:` automatic route, which is labelled using its currently documented target model.
 
 See Synthetic's [current model catalogue](https://dev.synthetic.new/docs/api/models) for availability.
