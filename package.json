@@ -3,8 +3,7 @@
   "displayName": "Synthetic for Claude Code",
   "description": "Configure Anthropic's Claude Code editor extension in Cursor or VS Code to use Synthetic, with model routing and rolling quota status.",
   "version": "1.2.1",
-  "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "publisher": "private",
   "repository": {
     "type": "git",

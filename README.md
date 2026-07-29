@@ -66,3 +66,7 @@ Model routes and the quota refresh interval are available under **Synthetic for 
 ## Remove
 
 Switch to Anthropic or run **Synthetic for Claude Code: Restore Previous Configuration** before uninstalling. Removing the extension alone does not rewrite `claudeCode.environmentVariables`.
+
+## License
+
+Released under the [MIT License](LICENSE).
