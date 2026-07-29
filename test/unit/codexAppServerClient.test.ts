@@ -50,7 +50,15 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     const turnId = "turn_" + turnCounter;
     send({ id: message.id, result: { turn: { id: turnId, status: "inProgress" } } });
     const inputText = JSON.stringify(message.params.input);
-    if (!inputText.includes("wait for cancellation")) {
+    if (inputText.includes("fail immediately")) {
+      send({
+        method: "turn/completed",
+        params: {
+          threadId: "thr_1",
+          turn: { status: "failed", error: { message: "synthetic failure" } },
+        },
+      });
+    } else if (!inputText.includes("wait for cancellation")) {
       setTimeout(() => send({
         id: 900,
         method: "item/tool/call",
@@ -203,6 +211,10 @@ describe("CodexAppServerClient", () => {
       expect(JSON.stringify(threadStart)).toContain(
         '"ephemeral":true',
       );
+      const threadParams = isRecord(threadStart?.params)
+        ? threadStart.params
+        : {};
+      expect(threadParams.sandbox).toBe("read-only");
       expect(JSON.stringify(threadStart)).toContain(
         '"dynamicTools"',
       );
@@ -237,6 +249,26 @@ describe("CodexAppServerClient", () => {
       const log = await readFile(logPath, "utf8");
       expect(log).toContain('"method":"turn/interrupt"');
       expect(log).toContain('"turnId":"turn_1"');
+    } finally {
+      client.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces a turn failure that arrives before the response waiter", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "modelhop-codex-test-"));
+    const { executable } = await createFakeAppServer(root);
+    const client = new CodexAppServerClient(executable, root);
+    try {
+      await expect(
+        client.run(
+          {
+            model: "gpt-5.6-sol",
+            messages: [{ role: "user", content: "fail immediately" }],
+          },
+          DEFAULT_OPENAI_SETTINGS,
+        ),
+      ).rejects.toThrow("synthetic failure");
     } finally {
       client.dispose();
       await rm(root, { recursive: true, force: true });

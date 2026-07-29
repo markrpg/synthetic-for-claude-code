@@ -3,14 +3,17 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
-import type { BridgeConfiguration, BridgeHealth } from "./types.js";
+import {
+  BRIDGE_PROTOCOL_VERSION,
+  type BridgeConfiguration,
+  type BridgeHealth,
+} from "./types.js";
 import type { AnthropicRequest } from "./anthropicOpenAITranslator.js";
 import { CodexAppServerClient } from "./codexAppServerClient.js";
 import { OpenAIResponsesClient } from "./openAIResponsesClient.js";
 import { EncryptedReasoningStore } from "./reasoningStore.js";
 import { UsageTracker } from "./usageTracker.js";
 
-const BRIDGE_VERSION = "2.0.0";
 const MAX_BODY_BYTES = 32 * 1024 * 1024;
 const IDLE_EXIT_MS = 24 * 60 * 60 * 1000;
 
@@ -231,7 +234,7 @@ class BridgeServer {
         JSON.stringify({
           pid: process.pid,
           port: address.port,
-          version: BRIDGE_VERSION,
+          version: BRIDGE_PROTOCOL_VERSION,
           startedAt: Date.now(),
         }),
         { encoding: "utf8", mode: 0o600 },
@@ -256,7 +259,7 @@ class BridgeServer {
       if (request.method === "GET" && url.pathname === "/health") {
         const health: BridgeHealth = {
           name: "modelhop-bridge",
-          version: BRIDGE_VERSION,
+          version: BRIDGE_PROTOCOL_VERSION,
           provider: this.configuration?.provider,
           ready: Boolean(this.configuration),
         };

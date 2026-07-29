@@ -27,6 +27,7 @@ interface JsonRpcMessage {
 interface PendingRequest {
   resolve(value: unknown): void;
   reject(error: Error): void;
+  timer: NodeJS.Timeout;
 }
 
 interface CodexToolCall {
@@ -174,6 +175,7 @@ class CodexSession {
   private text = "";
   private phaseCalls: CodexToolCall[] = [];
   private completed = false;
+  private terminalError: Error | undefined;
   private usage: unknown;
   private waiter:
     | {
@@ -212,11 +214,15 @@ class CodexSession {
   }
 
   public fail(error: Error): void {
+    this.terminalError = error;
     this.waiter?.reject(error);
     this.waiter = undefined;
   }
 
   public waitForPhase(): Promise<CodexPhase> {
+    if (this.terminalError) {
+      return Promise.reject(this.terminalError);
+    }
     if (this.completed || this.phaseCalls.length > 0) {
       return Promise.resolve(this.takePhase());
     }
@@ -325,6 +331,7 @@ export class CodexAppServerClient {
         `Codex app-server exited unexpectedly${code === null ? "" : ` (${code})`}.`,
       );
       for (const pending of this.pending.values()) {
+        clearTimeout(pending.timer);
         pending.reject(error);
       }
       this.pending.clear();
@@ -449,7 +456,7 @@ export class CodexAppServerClient {
         model,
         cwd: this.cwd,
         approvalPolicy: "never",
-        sandbox: "readOnly",
+        sandbox: "read-only",
         personality: "none",
         ephemeral: true,
         allowProviderModelFallback: false,
@@ -600,6 +607,7 @@ export class CodexAppServerClient {
         return;
       }
       this.pending.delete(id);
+      clearTimeout(pending.timer);
       if (message.error !== undefined) {
         pending.reject(
           new Error(`Codex app-server error: ${JSON.stringify(message.error)}`),
@@ -706,7 +714,15 @@ export class CodexAppServerClient {
       return Promise.reject(new Error("Codex app-server is not running."));
     }
     const promise = new Promise<unknown>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(
+          new Error(
+            `Codex app-server did not answer ${method} within 30 seconds.`,
+          ),
+        );
+      }, 30_000);
+      this.pending.set(id, { resolve, reject, timer });
     });
     process.stdin.write(
       `${JSON.stringify({ id, method, ...(params === undefined ? {} : { params }) })}\n`,
@@ -735,9 +751,32 @@ export class CodexAppServerClient {
     if (signal?.aborted) {
       abort();
     }
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          new Error(
+            "Codex did not produce a response within 5 minutes. The turn was cancelled.",
+          ),
+        );
+      }, 300_000);
+    });
     try {
-      return this.phaseToAnthropic(await session.waitForPhase(), session);
+      const phase = await Promise.race([session.waitForPhase(), timeout]);
+      return this.phaseToAnthropic(phase, session);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("within 5 minutes")
+      ) {
+        await this.interrupt(session);
+        this.sessions.delete(session.threadId);
+      }
+      throw error;
     } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
       signal?.removeEventListener("abort", abort);
     }
   }

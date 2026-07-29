@@ -16,8 +16,8 @@ import type {
   BridgeProviderId,
   BridgeUsageSnapshot,
 } from "./types.js";
+import { BRIDGE_PROTOCOL_VERSION } from "./types.js";
 
-const BRIDGE_VERSION = "2.0.0";
 const PORT_STATE_KEY = "modelHop.bridge.port";
 const CODEX_WARNING_KEY = "modelHop.codex.experimentalAcknowledged";
 
@@ -328,7 +328,7 @@ export class BridgeManager {
 
   private async ensureDaemon(): Promise<void> {
     const health = await this.health();
-    if (health?.version === BRIDGE_VERSION) {
+    if (health?.version === BRIDGE_PROTOCOL_VERSION) {
       return;
     }
     if (health) {
@@ -370,7 +370,7 @@ export class BridgeManager {
     for (let attempt = 0; attempt < 50; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const ready = await this.health();
-      if (ready?.version === BRIDGE_VERSION) {
+      if (ready?.version === BRIDGE_PROTOCOL_VERSION) {
         this.logger.info(
           `ModelHop bridge ready on 127.0.0.1:${this.port}`,
         );
