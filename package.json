@@ -1,7 +1,7 @@
 {
   "name": "claude-provider-switcher",
   "displayName": "Synthetic for Claude Code",
-  "description": "Configure Anthropic's Claude Code editor extension in Cursor or VS Code to use Synthetic, with model routing and rolling quota status.",
+  "description": "Run Kimi K3 and other Synthetic models in Anthropic's Claude Code editor extension, with per-role routing and live quota status.",
   "version": "1.2.1",
   "license": "MIT",
   "publisher": "private",
@@ -21,12 +21,18 @@
   ],
   "keywords": [
     "claude",
+    "claude-code",
     "cursor",
     "anthropic",
     "synthetic",
+    "kimi",
+    "kimi-k3",
+    "moonshot-ai",
     "provider",
     "models",
-    "quota"
+    "quota",
+    "vscode-extension",
+    "ai-coding"
   ],
   "extensionKind": [
     "ui"

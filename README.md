@@ -1,8 +1,25 @@
 # Synthetic for Claude Code
 
-Configure Anthropic's Claude Code editor extension in Cursor or VS Code to use Synthetic as its model provider. This extension handles the Synthetic API token, per-role model routing, rolling quota status, and switching back to native Anthropic.
+Run Kimi K3 and other Synthetic models inside Anthropic's Claude Code editor extension for Cursor or VS Code. Switch providers, route each Claude role to a different model, and keep live five-hour and weekly quota visible.
+
+> **New to Synthetic? [Create your Synthetic account →](https://synthetic.new/?referral=mTRNs0GS)**
+>
+> This is a referral link. You can also [download the latest VSIX](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 
 This project targets the graphical Claude Code editor extension. It does not install or configure standalone CLI sessions launched outside Cursor or VS Code.
+
+## Run Kimi K3 in Claude Code
+
+Synthetic currently lists Kimi K3 as an included beta model under `hf:moonshotai/Kimi-K3`, and its recommended `syn:large:vision` alias currently resolves to Kimi K3.
+
+After switching the extension to Synthetic, choose **Configure Synthetic model routing** and assign either:
+
+- `syn:large:vision` to follow Synthetic's current recommended large vision model.
+- `hf:moonshotai/Kimi-K3` to pin a Claude role to Kimi K3 specifically.
+
+You can route Default, Opus, Sonnet, and subagents to Kimi K3 while keeping Haiku on a smaller model for fast tasks and summarization. The picker reads Synthetic's live model list, shows alias resolutions, and warns before you pin a model that Synthetic may rotate out later.
+
+See Synthetic's [current model catalogue](https://dev.synthetic.new/docs/api/models) for availability.
 
 ## Preview
 
@@ -22,7 +39,7 @@ Choose from recommended aliases and currently available models:
 
 - Install Anthropic's [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).
 - Cursor users can follow Anthropic's [VS Code and Cursor installation guide](https://code.claude.com/docs/en/ide-integrations).
-- Create a Synthetic API key from your Synthetic account.
+- Create an API key from your [Synthetic account](https://synthetic.new/?referral=mTRNs0GS) (referral link).
 
 ## Install
 

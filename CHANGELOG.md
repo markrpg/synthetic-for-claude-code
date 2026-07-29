@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added a Kimi K3 quick-start section and clearer model-routing guidance.
+- Added a prominently disclosed Synthetic referral link.
+- Expanded project metadata to improve discovery for Kimi K3, Claude Code, Cursor, and VS Code searches.
+
 ## 1.2.1
 
 - Released the project publicly under the MIT License.
