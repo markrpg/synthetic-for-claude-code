@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+- Fixed the provider menu remaining stuck on **Activating Extensions…** after a provider-switch reload.
+- Made the post-reload status notification non-blocking so commands are available immediately.
+
 ## 1.2.2
 
 - Fixed switching back to Anthropic so Synthetic-only traffic and attribution flags are removed.

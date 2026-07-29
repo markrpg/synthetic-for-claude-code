@@ -29,7 +29,7 @@ suite("Synthetic for Claude Code extension", () => {
       extension.packageJSON.displayName,
       "Synthetic for Claude Code",
     );
-    assert.equal(extension.packageJSON.version, "1.2.2");
+    assert.equal(extension.packageJSON.version, "1.2.3");
     await extension.activate();
     assert.equal(extension.isActive, true);
 

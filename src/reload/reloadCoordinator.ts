@@ -54,7 +54,7 @@ export class ReloadCoordinator {
     const overrideNote = pending.workspaceOverride
       ? " A workspace or folder setting still overrides the global selection."
       : "";
-    await vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       `Claude Code is now configured for ${providerLabel(
         pending.provider,
       )}.${overrideNote} Open Claude Code to continue.`,

@@ -43,7 +43,7 @@ Choose from recommended aliases and currently available models:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.2.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.3.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -81,6 +81,8 @@ References: Synthetic's [Claude Code guide](https://dev.synthetic.new/docs/guide
 While Synthetic is active, the status bar shows percentages remaining for the rolling five-hour request window and weekly credits, for example `Syn: 5h 33.2% · wk 56.73% left`.
 
 Quota data comes from `GET https://api.synthetic.new/v2/quotas`. The extension uses `rollingFiveHourLimit` and `weeklyTokenLimit` when returned. The older `subscription` counter appears only as a labelled `legacy` fallback.
+
+Synthetic regenerates quota automatically at the times shown. Open **View Synthetic quota and usage** and choose **Refresh** to fetch the latest values; Synthetic does not currently document an API for manually resetting quota.
 
 See Synthetic's [`/quotas` reference](https://dev.synthetic.new/docs/synthetic/quotas) or run **Synthetic for Claude Code: Open Usage and Billing**.
 

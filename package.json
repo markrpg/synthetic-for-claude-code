@@ -2,7 +2,7 @@
   "name": "claude-provider-switcher",
   "displayName": "Synthetic for Claude Code",
   "description": "Run Kimi K3 and other Synthetic models in Anthropic's Claude Code editor extension, with per-role routing and live quota status.",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "license": "MIT",
   "publisher": "private",
   "repository": {
@@ -65,7 +65,7 @@
     "compile:integration": "tsc -p tsconfig.integration.json",
     "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run compile",
-    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.2.vsix"
+    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.3.vsix"
   },
   "contributes": {
     "commands": [
