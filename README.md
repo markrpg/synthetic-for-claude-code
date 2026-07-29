@@ -26,9 +26,10 @@ Choose from recommended aliases and currently available models:
 
 ## Install
 
-1. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
-2. Select `synthetic-for-claude-code-1.2.1.vsix`.
-3. Reload Cursor when prompted.
+1. Download `synthetic-for-claude-code-1.2.1.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
+3. Select the downloaded VSIX.
+4. Reload Cursor when prompted.
 
 The internal extension ID remains `private.claude-provider-switcher`, so this build upgrades versions 1.1.x and 1.2.0 without creating a second extension. Existing `claudeProvider.*` settings are preserved.
 
