@@ -19,13 +19,7 @@ const synthetic: EnvironmentVariable[] = [
   },
 ];
 
-const anthropic: EnvironmentVariable[] = [
-  {
-    name: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
-    value: "1",
-  },
-  { name: "CLAUDE_CODE_ATTRIBUTION_HEADER", value: "0" },
-];
+const anthropic: EnvironmentVariable[] = [];
 
 describe("mergeEnvironmentVariables", () => {
   it("handles an empty existing configuration", () => {
@@ -82,11 +76,18 @@ describe("mergeEnvironmentVariables", () => {
     ).toBe("0");
   });
 
-  it("removes the Synthetic token when switching to Anthropic", () => {
+  it("removes Synthetic credentials and traffic flags when switching to Anthropic", () => {
     const result = mergeEnvironmentVariables(synthetic, anthropic);
     expect(
       result.some(
         (variable) => variable.name === "ANTHROPIC_AUTH_TOKEN",
+      ),
+    ).toBe(false);
+    expect(
+      result.some(
+        (variable) =>
+          variable.name ===
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
       ),
     ).toBe(false);
   });

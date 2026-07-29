@@ -6,14 +6,5 @@ export const anthropicProfile: ProviderProfile = {
   shortLabel: "Anthropic",
   description: "Use Claude Code's native Anthropic authentication.",
   requiresCredential: false,
-  environmentVariables: [
-    {
-      name: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
-      value: "1",
-    },
-    {
-      name: "CLAUDE_CODE_ATTRIBUTION_HEADER",
-      value: "0",
-    },
-  ],
+  environmentVariables: [],
 };

@@ -119,7 +119,9 @@ export class ValidationService {
     issues: string[],
   ): void {
     const presentKeys = new Set(variables.map((variable) => variable.name));
-    const staleKeys = PROVIDER_KEY_NAMES.filter((key) => presentKeys.has(key));
+    const staleKeys = PROVIDER_KEY_NAMES.filter(
+      (key) => key !== "ANTHROPIC_API_KEY" && presentKeys.has(key),
+    );
 
     if (staleKeys.length > 0) {
       issues.push(

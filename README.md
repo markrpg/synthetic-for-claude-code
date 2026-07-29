@@ -43,7 +43,7 @@ Choose from recommended aliases and currently available models:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.1.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.2.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -88,6 +88,9 @@ See Synthetic's [`/quotas` reference](https://dev.synthetic.new/docs/synthetic/q
 
 - The source Synthetic token is stored in VS Code `SecretStorage`.
 - Claude Code requires the active token in `claudeCode.environmentVariables`, where it may be visible in Cursor's user settings while Synthetic is active. Switching to Anthropic removes it.
+- Claude.ai OAuth credentials remain in Claude Code's secure credential store and are never read, changed, or deleted by this extension.
+- If native Anthropic uses `ANTHROPIC_API_KEY` in Cursor settings, the extension protects it in `SecretStorage` while Synthetic is active and restores it when switching back.
+- Synthetic-only model, traffic, and attribution overrides are removed in Anthropic mode so Claude Code can use its normal authentication, usage, and account services.
 - Logs and configuration summaries redact credential values. API response bodies are not logged.
 - Model and quota requests send the token only to the fixed Synthetic HTTPS endpoints documented above.
 - Provider writes are global. Workspace or folder overrides can still take precedence; the extension warns before continuing.

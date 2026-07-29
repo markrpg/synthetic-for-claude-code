@@ -2,6 +2,8 @@ import type * as vscode from "vscode";
 
 export const SYNTHETIC_TOKEN_SECRET_KEY =
   "claudeProvider.synthetic.apiToken";
+export const ANTHROPIC_API_KEY_SECRET_KEY =
+  "claudeProvider.anthropic.apiKey";
 
 export class MissingCredentialError extends Error {
   public constructor() {
@@ -46,5 +48,29 @@ export class CredentialService {
 
   public async clearSyntheticToken(): Promise<void> {
     await this.secrets.delete(SYNTHETIC_TOKEN_SECRET_KEY);
+  }
+
+  public async getAnthropicApiKey(): Promise<string | undefined> {
+    const apiKey = await this.secrets.get(ANTHROPIC_API_KEY_SECRET_KEY);
+    if (!apiKey?.trim()) {
+      return undefined;
+    }
+    this.registerSecretForRedaction?.(apiKey);
+    return apiKey;
+  }
+
+  public async rememberAnthropicApiKey(
+    apiKey: string | undefined,
+  ): Promise<void> {
+    const normalisedApiKey = apiKey?.trim();
+    if (!normalisedApiKey) {
+      await this.secrets.delete(ANTHROPIC_API_KEY_SECRET_KEY);
+      return;
+    }
+    this.registerSecretForRedaction?.(normalisedApiKey);
+    await this.secrets.store(
+      ANTHROPIC_API_KEY_SECRET_KEY,
+      normalisedApiKey,
+    );
   }
 }

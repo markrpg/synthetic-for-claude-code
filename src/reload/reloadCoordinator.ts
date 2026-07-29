@@ -57,7 +57,7 @@ export class ReloadCoordinator {
     await vscode.window.showInformationMessage(
       `Claude Code is now configured for ${providerLabel(
         pending.provider,
-      )}.${overrideNote} Open Claude Code and use its conversation history to resume your session.`,
+      )}.${overrideNote} Open Claude Code to continue.`,
       "Dismiss",
     );
   }

@@ -107,6 +107,19 @@ describe("ValidationService", () => {
     ).toEqual(variables);
   });
 
+  it("accepts a native Anthropic API key", () => {
+    const variables = [
+      { name: "ANTHROPIC_API_KEY", value: "test-placeholder" },
+    ];
+    expect(
+      service.validateVariables(
+        "anthropic",
+        variables,
+        DEFAULT_SYNTHETIC_SETTINGS,
+      ),
+    ).toEqual(variables);
+  });
+
   it("rejects stale Synthetic values in Anthropic mode", () => {
     expectInvalid(
       [

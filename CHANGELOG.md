@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.2.2
 
+- Fixed switching back to Anthropic so Synthetic-only traffic and attribution flags are removed.
+- Preserved settings-based native Anthropic API keys securely across provider switches.
+- Confirmed that Claude.ai OAuth credentials remain owned by Claude Code and are not modified by the extension.
+- Removed guidance that encouraged resuming conversation history after every reload.
 - Added a Kimi K3 quick-start section and clearer model-routing guidance.
 - Added a prominently disclosed Synthetic referral link.
 - Expanded project metadata to improve discovery for Kimi K3, Claude Code, Cursor, and VS Code searches.

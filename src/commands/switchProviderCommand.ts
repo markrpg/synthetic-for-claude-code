@@ -95,6 +95,14 @@ export class SwitchProviderCommand {
     ) {
       return;
     }
+    if (currentProvider === "anthropic" && providerId === "synthetic") {
+      const anthropicApiKey = configuration.global.variables.find(
+        (variable) => variable.name === "ANTHROPIC_API_KEY",
+      )?.value;
+      await this.credentialService.rememberAnthropicApiKey(
+        anthropicApiKey,
+      );
+    }
     let targetVariables =
       await this.providerRegistry.buildEnvironment(providerId);
     const preserveShared = vscode.workspace

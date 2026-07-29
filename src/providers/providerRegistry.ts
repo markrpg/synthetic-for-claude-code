@@ -70,7 +70,13 @@ export class ProviderRegistry {
   ): Promise<EnvironmentVariable[]> {
     const profile = this.getProfile(providerId);
     if (providerId === "anthropic") {
-      return [...profile.environmentVariables];
+      const apiKey = await this.credentialService.getAnthropicApiKey();
+      return apiKey
+        ? [
+            ...profile.environmentVariables,
+            { name: "ANTHROPIC_API_KEY", value: apiKey },
+          ]
+        : [...profile.environmentVariables];
     }
 
     const token = await this.credentialService.getSyntheticToken();
