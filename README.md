@@ -34,7 +34,7 @@ The status bar shows the active provider and live Synthetic quota:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.8.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.9.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -55,6 +55,24 @@ Provider changes reload the full Cursor or VS Code window so Claude Code receive
 The confirmation includes a **Don't ask again** checkbox. Selecting it disables future provider-switch confirmations globally; re-enable `claudeProvider.confirmBeforeReload` in the extension's settings at any time.
 
 If the status item is hidden, run **Synthetic for Claude Code: Use Anthropic** or **Synthetic for Claude Code: Use Synthetic** from the Command Palette.
+
+## Conversation continuity
+
+Synthetic models can emit tool-call IDs containing characters such as `:`, while Anthropic accepts only letters, numbers, `_`, and `-`. Synthetic thinking blocks can also lack the cryptographic signature Anthropic verifies. Replaying those blocks after a provider switch otherwise produces a 400 error even though Anthropic authentication is working.
+
+Before switching from Synthetic to Anthropic, the extension silently repairs affected Claude Code transcripts for the current workspace in place:
+
+- incompatible client and server tool IDs are replaced with deterministic Anthropic-compatible IDs;
+- matching tool-result and nested caller references are updated together;
+- Synthetic thinking and redacted-thinking blocks are removed while the conversation branch is reconnected;
+- malformed names, inputs, duplicate IDs, and missing or orphaned tool results are detected so the extension never attempts a lossy guess; and
+- the original transcript is saved privately in the extension's storage before the atomic replacement.
+
+This preserves the existing conversation without adding another prompt or notification to the normal switch. Run **Synthetic for Claude Code: Repair Conversations for Anthropic** only if a chat was already affected before installing the fix. The command reloads the window after a successful repair so the open Claude Code panel reads the corrected history.
+
+Automatic repair is enabled by `claudeProvider.repairConversationHistory`. The repair reads only current-workspace Claude Code transcript files and does not send their contents anywhere.
+
+References: Anthropic's [tool-use flow](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview) and [thinking-signature documentation](https://platform.claude.com/docs/en/about-claude/models/extended-thinking-models).
 
 ## Model routing
 
@@ -87,6 +105,7 @@ See Synthetic's [`/quotas` reference](https://dev.synthetic.new/docs/synthetic/q
 - If native Anthropic uses `ANTHROPIC_API_KEY` in Cursor settings, the extension protects it in `SecretStorage` while Synthetic is active and restores it when switching back.
 - Synthetic-only model, traffic, and attribution overrides are removed in Anthropic mode so Claude Code can use its normal authentication, usage, and account services.
 - Logs and configuration summaries redact credential values. API response bodies are not logged.
+- Conversation repair backups remain local in the extension's private global storage.
 - Model and quota requests send the token only to the fixed Synthetic HTTPS endpoints documented above.
 - Provider writes are global. Workspace or folder overrides can still take precedence; the extension warns before continuing.
 - Unrelated Claude Code environment variables are preserved. Failed changes are rolled back from an extension snapshot.

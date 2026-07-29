@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { DetectedProvider, ProviderId } from "../providers/types.js";
+import type { TranscriptRepairSummary } from "../transcripts/claudeTranscriptRepairService.js";
 
 const PENDING_RELOAD_KEY = "claudeProvider.pendingReload";
 const MAX_PENDING_AGE_MS = 10 * 60 * 1000;
@@ -7,8 +8,9 @@ const MAX_PENDING_AGE_MS = 10 * 60 * 1000;
 export interface PendingReload {
   provider: ProviderId | DetectedProvider;
   switchedAt: number;
-  reason: "switch" | "restore";
+  reason: "switch" | "restore" | "repair";
   workspaceOverride: boolean;
+  transcriptRepair?: TranscriptRepairSummary;
 }
 
 function providerLabel(provider: PendingReload["provider"]): string {
@@ -54,6 +56,17 @@ export class ReloadCoordinator {
     const overrideNote = pending.workspaceOverride
       ? " A workspace or folder setting still overrides the global selection."
       : "";
+    if (pending.reason === "repair") {
+      const filesChanged =
+        pending.transcriptRepair?.filesChanged ?? 0;
+      void vscode.window.showInformationMessage(
+        `Repaired ${filesChanged} Claude Code conversation${
+          filesChanged === 1 ? "" : "s"
+        } in place. You can continue the same chat.`,
+        "Dismiss",
+      );
+      return;
+    }
     void vscode.window.showInformationMessage(
       `Claude Code is now configured for ${providerLabel(
         pending.provider,

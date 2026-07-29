@@ -12,6 +12,7 @@ import type { ProviderRegistry } from "../providers/providerRegistry.js";
 import type { ProviderId } from "../providers/types.js";
 import type { ReloadCoordinator } from "../reload/reloadCoordinator.js";
 import type { SnapshotService } from "../snapshots/snapshotService.js";
+import type { ClaudeTranscriptRepairService } from "../transcripts/claudeTranscriptRepairService.js";
 import {
   confirmProviderSwitch,
   showConflictDialog,
@@ -31,6 +32,7 @@ export class SwitchProviderCommand {
     private readonly validationService: ValidationService,
     private readonly snapshotService: SnapshotService,
     private readonly reloadCoordinator: ReloadCoordinator,
+    private readonly transcriptRepairService: ClaudeTranscriptRepairService,
     private readonly logger: RedactingLogger,
   ) {}
 
@@ -149,6 +151,27 @@ export class SwitchProviderCommand {
       !(await confirmProviderSwitch(currentProvider, profile))
     ) {
       return;
+    }
+
+    const repairConversationHistory = vscode.workspace
+      .getConfiguration("claudeProvider")
+      .get("repairConversationHistory", true);
+    if (
+      currentProvider === "synthetic" &&
+      providerId === "anthropic" &&
+      repairConversationHistory
+    ) {
+      const transcriptRepair =
+        await this.transcriptRepairService.repairWorkspaceTranscripts(
+          (vscode.workspace.workspaceFolders ?? []).map(
+            (folder) => folder.uri.fsPath,
+          ),
+        );
+      if (transcriptRepair.filesChanged > 0) {
+        this.logger.info(
+          `Repaired ${transcriptRepair.filesChanged} Claude conversation transcript(s) for Anthropic compatibility`,
+        );
+      }
     }
 
     const previousProvider = currentProvider;

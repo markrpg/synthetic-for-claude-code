@@ -15,6 +15,7 @@ const extensionTestsPath = path.resolve(
 
 try {
   await runTests({
+    version: "1.130.0",
     extensionDevelopmentPath,
     extensionTestsPath,
     launchArgs: ["--disable-extensions"],

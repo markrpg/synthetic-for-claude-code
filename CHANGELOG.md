@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.9
+
+- Preserve Synthetic conversations when switching back to Anthropic by repairing incompatible tool-call IDs and their matching tool-result references.
+- Remove non-Anthropic thinking and redacted-thinking blocks while reconnecting the conversation branch, preventing signature-validation errors.
+- Audit client and server tool metadata, nested caller references, duplicate IDs, malformed inputs, and missing or orphaned results without guessing at unsafe repairs.
+- Save a private backup before every atomic transcript repair.
+- Run the migration silently during the normal switch, with a manual recovery command only for chats affected before this release.
+
 ## 1.2.8
 
 - Fix stale Synthetic quota percentages by bypassing browser and intermediary caches on API requests.

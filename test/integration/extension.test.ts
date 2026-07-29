@@ -29,7 +29,7 @@ suite("Synthetic for Claude Code extension", () => {
       extension.packageJSON.displayName,
       "Synthetic for Claude Code",
     );
-    assert.equal(extension.packageJSON.version, "1.2.8");
+    assert.equal(extension.packageJSON.version, "1.2.9");
     await extension.activate();
     assert.equal(extension.isActive, true);
 
@@ -52,6 +52,7 @@ suite("Synthetic for Claude Code extension", () => {
       "claudeProvider.configureSyntheticModels",
       "claudeProvider.showSyntheticUsage",
       "claudeProvider.openSyntheticUsage",
+      "claudeProvider.repairConversations",
     ]) {
       assert.ok(commands.includes(command), `${command} is not registered`);
     }

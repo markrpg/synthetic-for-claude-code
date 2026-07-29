@@ -22,6 +22,7 @@ import { SyntheticQuotaStatusBarController } from "./ui/syntheticQuotaStatusBarC
 import { detectProvider } from "./validation/providerDetector.js";
 import { ValidationService } from "./validation/validationService.js";
 import { SyntheticApiService } from "./synthetic/syntheticApiService.js";
+import { ClaudeTranscriptRepairService } from "./transcripts/claudeTranscriptRepairService.js";
 
 type Command = (...args: never[]) => void | Promise<void>;
 
@@ -66,6 +67,12 @@ export async function activate(
     },
   );
   const reloadCoordinator = new ReloadCoordinator(context);
+  const transcriptRepairService = new ClaudeTranscriptRepairService(
+    vscode.Uri.joinPath(
+      context.globalStorageUri,
+      "conversation-backups",
+    ).fsPath,
+  );
   const statusBarController = new StatusBarController(
     settingsService,
     providerRegistry,
@@ -79,6 +86,7 @@ export async function activate(
     validationService,
     snapshotService,
     reloadCoordinator,
+    transcriptRepairService,
     logger,
   );
   const modelRoutingCommand = new ModelRoutingCommand(
@@ -188,6 +196,34 @@ export async function activate(
   });
   register("claudeProvider.openSyntheticUsage", async () => {
     await quotaStatusBarController.openUsageAndBilling();
+  });
+  register("claudeProvider.repairConversations", async () => {
+    const summary =
+      await transcriptRepairService.repairWorkspaceTranscripts(
+        (vscode.workspace.workspaceFolders ?? []).map(
+          (folder) => folder.uri.fsPath,
+        ),
+      );
+    if (summary.filesChanged === 0) {
+      await vscode.window.showInformationMessage(
+        summary.filesScanned === 0
+          ? "No Claude Code conversations were found for the current workspace."
+          : "No incompatible Synthetic conversation data was found.",
+      );
+      return;
+    }
+    const provider = detectProvider(
+      settingsService.read().effectiveRawValue,
+      providerRegistry.getSyntheticSettings().baseUrl,
+    );
+    await reloadCoordinator.markPending({
+      provider,
+      switchedAt: Date.now(),
+      reason: "repair",
+      workspaceOverride: false,
+      transcriptRepair: summary,
+    });
+    await reloadCoordinator.reloadWindow();
   });
 
   context.subscriptions.push(

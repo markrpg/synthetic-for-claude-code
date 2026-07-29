@@ -2,7 +2,7 @@
   "name": "claude-provider-switcher",
   "displayName": "Synthetic for Claude Code",
   "description": "Run Kimi K3 and other Synthetic models in Anthropic's Claude Code editor extension, with per-role routing and live quota status.",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "license": "MIT",
   "publisher": "private",
   "repository": {
@@ -51,7 +51,8 @@
     "onCommand:claudeProvider.openSettings",
     "onCommand:claudeProvider.configureSyntheticModels",
     "onCommand:claudeProvider.showSyntheticUsage",
-    "onCommand:claudeProvider.openSyntheticUsage"
+    "onCommand:claudeProvider.openSyntheticUsage",
+    "onCommand:claudeProvider.repairConversations"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -65,7 +66,7 @@
     "compile:integration": "tsc -p tsconfig.integration.json",
     "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run compile",
-    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.8.vsix"
+    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.9.vsix"
   },
   "contributes": {
     "commands": [
@@ -120,6 +121,10 @@
       {
         "command": "claudeProvider.openSyntheticUsage",
         "title": "Synthetic for Claude Code: Open Usage and Billing"
+      },
+      {
+        "command": "claudeProvider.repairConversations",
+        "title": "Synthetic for Claude Code: Repair Conversations for Anthropic"
       }
     ],
     "configuration": {
@@ -171,6 +176,11 @@
           "type": "boolean",
           "default": true,
           "description": "Preserve existing shared Claude Code traffic and attribution preferences when switching. Unrelated environment variables are always preserved."
+        },
+        "claudeProvider.repairConversationHistory": {
+          "type": "boolean",
+          "default": true,
+          "description": "Silently repair incompatible Synthetic tool metadata and non-Anthropic thinking blocks in current-workspace Claude Code transcripts before switching to Anthropic. Private backups are saved in extension storage."
         }
       }
     }
