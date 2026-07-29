@@ -2,11 +2,11 @@ import type { ProviderProfile, SyntheticSettings } from "./types.js";
 
 export const DEFAULT_SYNTHETIC_SETTINGS: SyntheticSettings = {
   baseUrl: "https://api.synthetic.new/anthropic",
-  defaultModel: "syn:large:vision",
-  opusModel: "syn:large:vision",
-  sonnetModel: "syn:large:vision",
-  haikuModel: "syn:small:text",
-  subagentModel: "syn:large:vision",
+  defaultModel: "hf:moonshotai/Kimi-K3",
+  opusModel: "hf:moonshotai/Kimi-K3",
+  sonnetModel: "hf:moonshotai/Kimi-K3",
+  haikuModel: "hf:zai-org/GLM-4.7-Flash",
+  subagentModel: "hf:moonshotai/Kimi-K3",
 };
 
 export function createSyntheticProfile(
@@ -16,7 +16,8 @@ export function createSyntheticProfile(
     id: "synthetic",
     label: "Synthetic — Configurable Models",
     shortLabel: "Synthetic",
-    description: `Default ${settings.defaultModel}; Opus ${settings.opusModel}; Sonnet ${settings.sonnetModel}; Haiku ${settings.haikuModel}; subagents ${settings.subagentModel}.`,
+    description:
+      "Separate model routing for Default, Opus, Sonnet, Haiku, and subagents.",
     requiresCredential: true,
     environmentVariables: [
       { name: "ANTHROPIC_BASE_URL", value: settings.baseUrl },

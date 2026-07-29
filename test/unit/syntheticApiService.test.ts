@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  formatModelDisplayName,
   formatQuotaDetails,
   formatQuotaStatus,
   mergeAliasAndApiModels,
@@ -8,6 +9,7 @@ import {
   SYNTHETIC_MODELS_URL,
   SyntheticApiError,
   SyntheticApiService,
+  syntheticModelDisplayName,
 } from "../../src/synthetic/syntheticApiService.js";
 
 describe("Synthetic API response parsing", () => {
@@ -54,6 +56,21 @@ describe("Synthetic API response parsing", () => {
     expect(
       models.filter((model) => model.id === "syn:large:text"),
     ).toHaveLength(1);
+  });
+
+  it("shows actual model names instead of routing identifiers", () => {
+    expect(
+      formatModelDisplayName("hf:moonshotai/Kimi-K3"),
+    ).toBe("Kimi K3");
+    expect(formatModelDisplayName("syn:small:text")).toBe(
+      "Automatic Small Text",
+    );
+    expect(
+      syntheticModelDisplayName({
+        id: "syn:large:vision",
+        aliasResolution: "hf:moonshotai/Kimi-K3",
+      }),
+    ).toBe("Kimi K3");
   });
 
   it("parses and formats current rolling quotas before legacy counters", () => {

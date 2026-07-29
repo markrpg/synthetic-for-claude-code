@@ -135,11 +135,11 @@ export class ModelRoutingCommand {
     } catch (error) {
       const message = this.logger.error(error);
       const action = await vscode.window.showWarningMessage(
-        `${message} You can continue with the four documented syn: aliases.`,
-        "Use Aliases Only",
+        `${message} You can continue with Synthetic's documented automatic model routes.`,
+        "Use Automatic Routes",
         "Update Token",
       );
-      if (action === "Use Aliases Only") {
+      if (action === "Use Automatic Routes") {
         return mergeAliasAndApiModels([]);
       }
       if (action === "Update Token") {

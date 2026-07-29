@@ -96,7 +96,7 @@ export const SYNTHETIC_ALIAS_MODELS: readonly SyntheticModel[] = [
   {
     id: "syn:large:vision",
     source: "alias",
-    aliasResolution: "hf:moonshotai/Kimi-K2.7-Code",
+    aliasResolution: "hf:moonshotai/Kimi-K3",
     category: "Large vision",
   },
   {
@@ -106,6 +106,33 @@ export const SYNTHETIC_ALIAS_MODELS: readonly SyntheticModel[] = [
     category: "Small vision",
   },
 ];
+
+export function formatModelDisplayName(modelId: string): string {
+  if (modelId.startsWith("syn:")) {
+    const route = modelId
+      .slice(4)
+      .split(":")
+      .map(
+        (part) =>
+          `${part.charAt(0).toUpperCase()}${part.slice(1)}`,
+      )
+      .join(" ");
+    return `Automatic ${route}`;
+  }
+  const withoutPrefix = modelId.startsWith("hf:")
+    ? modelId.slice(3)
+    : modelId;
+  const slash = withoutPrefix.lastIndexOf("/");
+  const name =
+    slash >= 0 ? withoutPrefix.slice(slash + 1) : withoutPrefix;
+  return name.replace(/_/g, " ").replace(/-(?=[A-Z0-9])/g, " ");
+}
+
+export function syntheticModelDisplayName(
+  model: Pick<SyntheticModel, "id" | "aliasResolution">,
+): string {
+  return formatModelDisplayName(model.aliasResolution ?? model.id);
+}
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null;

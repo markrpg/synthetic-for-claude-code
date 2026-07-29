@@ -2,7 +2,7 @@
   "name": "claude-provider-switcher",
   "displayName": "Synthetic for Claude Code",
   "description": "Run Kimi K3 and other Synthetic models in Anthropic's Claude Code editor extension, with per-role routing and live quota status.",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "license": "MIT",
   "publisher": "private",
   "repository": {
@@ -65,7 +65,7 @@
     "compile:integration": "tsc -p tsconfig.integration.json",
     "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run compile",
-    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.4.vsix"
+    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out synthetic-for-claude-code-1.2.5.vsix"
   },
   "contributes": {
     "commands": [
@@ -137,28 +137,28 @@
         },
         "claudeProvider.synthetic.defaultModel": {
           "type": "string",
-          "default": "syn:large:vision",
-          "description": "Synthetic model or alias used as Claude Code's default model."
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used as Claude Code's default model. Advanced syn: automatic routes are also supported."
         },
         "claudeProvider.synthetic.opusModel": {
           "type": "string",
-          "default": "syn:large:vision",
-          "description": "Synthetic model or alias used for Opus requests."
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used for Opus requests. Advanced syn: automatic routes are also supported."
         },
         "claudeProvider.synthetic.sonnetModel": {
           "type": "string",
-          "default": "syn:large:vision",
-          "description": "Synthetic model or alias used for Sonnet requests."
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used for Sonnet requests. Advanced syn: automatic routes are also supported."
         },
         "claudeProvider.synthetic.haikuModel": {
           "type": "string",
-          "default": "syn:small:text",
-          "description": "Synthetic model or alias used for Haiku requests."
+          "default": "hf:zai-org/GLM-4.7-Flash",
+          "description": "Synthetic model used for Haiku requests. Advanced syn: automatic routes are also supported."
         },
         "claudeProvider.synthetic.subagentModel": {
           "type": "string",
-          "default": "syn:large:vision",
-          "description": "Synthetic model or alias used for Claude Code subagents."
+          "default": "hf:moonshotai/Kimi-K3",
+          "description": "Synthetic model used for Claude Code subagents. Advanced syn: automatic routes are also supported."
         },
         "claudeProvider.synthetic.usageRefreshMinutes": {
           "type": "number",

@@ -10,14 +10,9 @@ This project targets the graphical Claude Code editor extension. It does not ins
 
 ## Run Kimi K3 in Claude Code
 
-Synthetic currently lists Kimi K3 as an included beta model under `hf:moonshotai/Kimi-K3`, and its recommended `syn:large:vision` alias currently resolves to Kimi K3.
+Synthetic currently lists Kimi K3 under `hf:moonshotai/Kimi-K3`. This extension uses that actual model ID by default for Claude Code's Default, Opus, Sonnet, and subagent routes, so the model is identifiable instead of appearing only as a generic `syn:` route.
 
-After switching the extension to Synthetic, choose **Configure Synthetic model routing** and assign either:
-
-- `syn:large:vision` to follow Synthetic's current recommended large vision model.
-- `hf:moonshotai/Kimi-K3` to pin a Claude role to Kimi K3 specifically.
-
-You can route Default, Opus, Sonnet, and subagents to Kimi K3 while keeping Haiku on a smaller model for fast tasks and summarization. The picker reads Synthetic's live model list, shows alias resolutions, and warns before you pin a model that Synthetic may rotate out later.
+The model picker leads with readable names such as **Kimi K3** and **GLM 4.7 Flash**, with the exact `hf:` API identifier shown as secondary detail. Advanced users can still choose a `syn:` automatic route, which is labelled using its currently documented target model.
 
 See Synthetic's [current model catalogue](https://dev.synthetic.new/docs/api/models) for availability.
 
@@ -27,14 +22,6 @@ The status bar shows the active provider and live Synthetic quota:
 
 ![Claude Code using Synthetic with five-hour and weekly quota remaining](docs/images/status-bar.png)
 
-Configure a separate Synthetic model for each Claude role:
-
-![Configure Synthetic models for Default, Opus, Sonnet, Haiku, and subagents](docs/images/model-routing.png)
-
-Choose from recommended aliases and currently available models:
-
-![Select a Synthetic model for a Claude role](docs/images/model-picker.png)
-
 ## Requirements
 
 - Install Anthropic's [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).
@@ -43,7 +30,7 @@ Choose from recommended aliases and currently available models:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.4.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.5.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -59,20 +46,20 @@ Click the `Claude: …` status item or run **Synthetic for Claude Code: Select P
 - Choose **Configure Synthetic model routing** to assign models to Claude roles.
 - Choose **View Synthetic quota and usage** for current limits and regeneration details.
 
-Provider changes restart Cursor's extension host so Claude Code receives the new environment. The editor window and workspace remain open; active Claude requests and subagents stop while the extensions restart.
+Provider changes restart Cursor's extension host so Claude Code receives the new environment, then refresh existing webviews so an open Claude Code panel reflects the new provider and models. The editor window, workspace, and conversation remain open; active Claude requests and subagents stop while the extensions restart.
 
 If the status item is hidden, run **Synthetic for Claude Code: Use Anthropic** or **Synthetic for Claude Code: Use Synthetic** from the Command Palette.
 
 ## Model routing
 
-The model picker reads `GET https://api.synthetic.new/openai/v1/models` and filters out embedding models. Recommended aliases appear before the live model list.
+The model picker reads `GET https://api.synthetic.new/openai/v1/models`, filters out embedding models, and presents readable model names with exact API IDs in the detail text.
 
 | Claude role | Initial model |
 |---|---|
-| Default, Opus, Sonnet, subagents | `syn:large:vision` |
-| Haiku | `syn:small:text` |
+| Default, Opus, Sonnet, subagents | Kimi K3 (`hf:moonshotai/Kimi-K3`) |
+| Haiku | GLM 4.7 Flash (`hf:zai-org/GLM-4.7-Flash`) |
 
-Synthetic may change alias targets. The picker shows each current alias resolution and warns before a model is pinned to a specific `hf:` ID.
+Exact models may be rotated out by Synthetic. Optional automatic routes remain available in the picker and are labelled by their current documented model rather than by the `syn:` identifier alone.
 
 References: Synthetic's [Claude Code guide](https://dev.synthetic.new/docs/guides/claude-code), [available models](https://dev.synthetic.new/docs/api/models), and [`/models` API](https://dev.synthetic.new/docs/openai/models).
 

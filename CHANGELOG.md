@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.5
+
+- Refresh existing webviews after the extension host restarts so an open Claude Code panel reflects the newly selected provider and models.
+- Keep the post-restart refresh non-blocking so extension activation cannot stall again.
+- Show readable model names as the primary labels and move technical `hf:` or `syn:` identifiers into secondary details.
+- Default new configurations to the actual Kimi K3 and GLM 4.7 Flash model IDs instead of generic routing aliases.
+
 ## 1.2.4
 
 - Restart Cursor's extension host after provider, credential, or active model-routing changes instead of reloading the entire editor window.

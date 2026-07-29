@@ -55,7 +55,7 @@ export async function showProviderQuickPick(
     label: "$(settings-gear) Configure Synthetic model routing",
     description: "Default, Opus, Sonnet, Haiku, and subagents",
     detail:
-      "Choose from recommended aliases or models returned by Synthetic.",
+      "Choose by model name from the models returned by Synthetic.",
   };
   const usageItem: TokenQuickPickItem = {
     selection: "show-usage",

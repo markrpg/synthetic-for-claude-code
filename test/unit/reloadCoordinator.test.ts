@@ -38,6 +38,7 @@ function createContext(): vscode.ExtensionContext {
 describe("ReloadCoordinator", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vscodeMocks.executeCommand.mockResolvedValue(undefined);
   });
 
   it("restarts extensions without reloading the editor window", async () => {
@@ -57,6 +58,9 @@ describe("ReloadCoordinator", () => {
     vscodeMocks.showInformationMessage.mockReturnValue(
       new Promise<string | undefined>(() => undefined),
     );
+    vscodeMocks.executeCommand.mockReturnValue(
+      new Promise<undefined>(() => undefined),
+    );
     const coordinator = new ReloadCoordinator(createContext());
     await coordinator.markPending({
       provider: "anthropic",
@@ -71,6 +75,9 @@ describe("ReloadCoordinator", () => {
     expect(vscodeMocks.showInformationMessage).toHaveBeenCalledWith(
       expect.stringContaining("Open Claude Code to continue."),
       "Dismiss",
+    );
+    expect(vscodeMocks.executeCommand).toHaveBeenCalledWith(
+      "workbench.action.webview.reloadWebviewAction",
     );
   });
 });

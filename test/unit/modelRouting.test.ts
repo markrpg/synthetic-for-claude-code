@@ -23,12 +23,13 @@ describe("model routing", () => {
     ).toBe(true);
   });
 
-  it("uses Synthetic's documented Claude Code role defaults", () => {
+  it("uses readable exact model IDs by default", () => {
     expect(DEFAULT_SYNTHETIC_SETTINGS).toMatchObject({
-      opusModel: "syn:large:vision",
-      sonnetModel: "syn:large:vision",
-      haikuModel: "syn:small:text",
-      subagentModel: "syn:large:vision",
+      defaultModel: "hf:moonshotai/Kimi-K3",
+      opusModel: "hf:moonshotai/Kimi-K3",
+      sonnetModel: "hf:moonshotai/Kimi-K3",
+      haikuModel: "hf:zai-org/GLM-4.7-Flash",
+      subagentModel: "hf:moonshotai/Kimi-K3",
     });
   });
 

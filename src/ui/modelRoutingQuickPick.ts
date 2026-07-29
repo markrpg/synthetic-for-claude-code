@@ -6,7 +6,11 @@ import {
   type SyntheticModelSettingKey,
 } from "../models/modelRouting.js";
 import type { SyntheticSettings } from "../providers/types.js";
-import type { SyntheticModel } from "../synthetic/syntheticApiService.js";
+import {
+  formatModelDisplayName,
+  syntheticModelDisplayName,
+  type SyntheticModel,
+} from "../synthetic/syntheticApiService.js";
 
 interface RoleItem extends vscode.QuickPickItem {
   selection: SyntheticModelSettingKey;
@@ -37,13 +41,18 @@ function roleItem(
 ): RoleItem {
   const current = settings[role.settingKey];
   const alias = findAlias(current, models);
+  const currentModel =
+    alias ?? models.find((model) => model.id === current);
+  const displayName = currentModel
+    ? syntheticModelDisplayName(currentModel)
+    : formatModelDisplayName(current);
   return {
     selection: role.settingKey,
     label: `$(symbol-variable) ${role.label}`,
-    description: current,
+    description: displayName,
     detail: alias?.aliasResolution
-      ? `${role.description} ${current} was documented as resolving to ${alias.aliasResolution} when this extension was released.`
-      : role.description,
+      ? `${role.description} Automatic route via ${current}; current documented model: ${alias.aliasResolution}.`
+      : `${role.description} Model ID: ${current}.`,
   };
 }
 
@@ -109,14 +118,15 @@ function modelItem(
   currentModel: string,
 ): ModelItem {
   const currentMarker = model.id === currentModel ? "$(check) " : "";
+  const displayName = syntheticModelDisplayName(model);
   if (model.source === "alias") {
     return {
       modelId: model.id,
-      label: `${currentMarker}$(references) ${model.id}`,
-      description: model.category,
+      label: `${currentMarker}$(references) ${displayName}`,
+      description: `${model.category ?? "Synthetic"} · automatic`,
       detail: model.aliasResolution
-        ? `Recommended alias. Documented mapping: ${model.aliasResolution}. Synthetic can update this mapping.`
-        : "Recommended Synthetic alias.",
+        ? `Routes through ${model.id}. Current documented model ID: ${model.aliasResolution}.`
+        : `Automatic route: ${model.id}.`,
       picked: model.id === currentModel,
     };
   }
@@ -131,10 +141,9 @@ function modelItem(
     .join(" · ");
   return {
     modelId: model.id,
-    label: `${currentMarker}$(server) ${model.id}`,
+    label: `${currentMarker}$(server) ${displayName}`,
     description: metadata || "Available model",
-    detail:
-      "Pinned model ID. Synthetic may remove pinned models during rotations.",
+    detail: `${model.id}. Synthetic may remove pinned models during rotations.`,
     picked: model.id === currentModel,
   };
 }
@@ -149,12 +158,18 @@ export async function showModelQuickPick(
   const manualItem: ManualModelItem = {
     manual: true,
     label: "$(edit) Enter a model ID",
-    description: "Use a syn: alias or hf: model ID",
+    description: "Advanced: use an hf: model ID or syn: automatic route",
   };
+  const currentEntry = models.find(
+    (model) => model.id === currentModel,
+  );
+  const currentDisplayName = currentEntry
+    ? syntheticModelDisplayName(currentEntry)
+    : formatModelDisplayName(currentModel);
   const selected = await vscode.window.showQuickPick(
     [
       {
-        label: "Recommended aliases",
+        label: "Automatic model routes",
         kind: vscode.QuickPickItemKind.Separator,
       },
       ...aliases.map((model) => modelItem(model, currentModel)),
@@ -177,7 +192,7 @@ export async function showModelQuickPick(
     ],
     {
       title: `${role.label} model`,
-      placeHolder: `Current: ${currentModel}`,
+      placeHolder: `Current: ${currentDisplayName}`,
       matchOnDescription: true,
       matchOnDetail: true,
     },
