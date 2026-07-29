@@ -62,11 +62,11 @@ export async function clearSyntheticTokenCommand(
   }
 
   const action = await vscode.window.showWarningMessage(
-    "Clear the Synthetic token from SecretStorage and global Claude Code settings? Cursor's extensions must restart, and Synthetic authentication will stop. The editor window will remain open.",
+    "Clear the Synthetic token from SecretStorage and global Claude Code settings? Cursor must reload, and Synthetic authentication will stop.",
     { modal: true },
-    "Clear and Restart Extensions",
+    "Clear and Reload Window",
   );
-  if (action !== "Clear and Restart Extensions") {
+  if (action !== "Clear and Reload Window") {
     return;
   }
 
@@ -82,5 +82,5 @@ export async function clearSyntheticTokenCommand(
     reason: "restore",
     workspaceOverride: configuration.overrideScopes.length > 0,
   });
-  await reloadCoordinator.restartExtensionHost();
+  await reloadCoordinator.reloadWindow();
 }

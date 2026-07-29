@@ -35,10 +35,8 @@ export class ReloadCoordinator {
     await this.context.globalState.update(PENDING_RELOAD_KEY, undefined);
   }
 
-  public async restartExtensionHost(): Promise<void> {
-    await vscode.commands.executeCommand(
-      "workbench.action.restartExtensionHost",
-    );
+  public async reloadWindow(): Promise<void> {
+    await vscode.commands.executeCommand("workbench.action.reloadWindow");
   }
 
   public async showPostReloadNotification(): Promise<void> {

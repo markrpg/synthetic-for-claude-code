@@ -29,14 +29,14 @@ suite("Synthetic for Claude Code extension", () => {
       extension.packageJSON.displayName,
       "Synthetic for Claude Code",
     );
-    assert.equal(extension.packageJSON.version, "1.2.6");
+    assert.equal(extension.packageJSON.version, "1.2.7");
     await extension.activate();
     assert.equal(extension.isActive, true);
 
     const commands = await vscode.commands.getCommands(true);
     assert.ok(
-      commands.includes("workbench.action.restartExtensionHost"),
-      "The editor does not provide the extension-host restart command",
+      commands.includes("workbench.action.reloadWindow"),
+      "The editor does not provide the full-window reload command",
     );
     for (const command of [
       "claudeProvider.select",

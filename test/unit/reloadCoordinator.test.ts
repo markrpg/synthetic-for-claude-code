@@ -41,16 +41,16 @@ describe("ReloadCoordinator", () => {
     vscodeMocks.executeCommand.mockResolvedValue(undefined);
   });
 
-  it("restarts extensions without reloading the editor window", async () => {
+  it("reloads the editor window", async () => {
     const coordinator = new ReloadCoordinator(createContext());
 
-    await coordinator.restartExtensionHost();
+    await coordinator.reloadWindow();
 
     expect(vscodeMocks.executeCommand).toHaveBeenCalledWith(
-      "workbench.action.restartExtensionHost",
+      "workbench.action.reloadWindow",
     );
     expect(vscodeMocks.executeCommand).not.toHaveBeenCalledWith(
-      "workbench.action.reloadWindow",
+      "workbench.action.restartExtensionHost",
     );
   });
 

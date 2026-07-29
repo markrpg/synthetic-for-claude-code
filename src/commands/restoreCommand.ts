@@ -34,11 +34,11 @@ export async function restoreCommand(
   }
 
   const action = await vscode.window.showWarningMessage(
-    "Restore Claude Code environment settings from the snapshot created before the last provider switch? Cursor's extensions will restart while the editor window stays open. Active Claude Code work will stop.",
+    "Restore Claude Code environment settings from the snapshot created before the last provider switch? Cursor must reload, and active Claude Code work will stop.",
     { modal: true },
-    "Restore and Restart Extensions",
+    "Restore and Reload Window",
   );
-  if (action !== "Restore and Restart Extensions") {
+  if (action !== "Restore and Reload Window") {
     return;
   }
 
@@ -56,8 +56,8 @@ export async function restoreCommand(
       workspaceOverride: continuedPastOverride,
     });
     logger.info("Previous configuration restored");
-    logger.info("Extension host restart requested");
-    await reloadCoordinator.restartExtensionHost();
+    logger.info("Full editor window reload requested");
+    await reloadCoordinator.reloadWindow();
   } catch (error) {
     let rollbackError: unknown;
     try {

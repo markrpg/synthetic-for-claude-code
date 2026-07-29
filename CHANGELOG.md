@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.7
+
+- Restore the full Cursor or VS Code window reload after provider, credential, or active model-routing changes.
+- Use the editor's serialized state restoration so the current Claude Code conversation reliably reopens with the new provider configuration.
+- Continue to avoid the global **Reload Webviews** command and never force a fresh conversation.
+- Add a persistent **Don't ask again** checkbox to the provider-switch confirmation.
+
 ## 1.2.6
 
 - Fixed an open Claude Code tab remaining blank after a provider switch.

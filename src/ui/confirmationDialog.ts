@@ -23,14 +23,36 @@ export async function confirmProviderSwitch(
   current: DetectedProvider,
   target: ProviderProfile,
 ): Promise<boolean> {
-  const action = await vscode.window.showWarningMessage(
-    `Switch Claude Code from ${currentProviderLabel(
-      current,
-    )} to ${target.shortLabel}? Cursor's extensions must restart for Claude Code to receive the new environment. The editor window will remain open, but any active Claude Code generation, Bash command, or subagent will stop.`,
-    { modal: true },
-    "Switch and Restart Extensions",
+  const dontAskAgainItem: vscode.QuickPickItem = {
+    label: "Don't ask again",
+    description:
+      "Skip this confirmation for future provider switches",
+  };
+  const selection = await vscode.window.showQuickPick(
+    [dontAskAgainItem],
+    {
+      title: `Switch Claude Code from ${currentProviderLabel(
+        current,
+      )} to ${target.shortLabel}?`,
+      placeHolder:
+        "Optionally tick “Don't ask again”, then confirm to switch and reload the window",
+      canPickMany: true,
+      ignoreFocusOut: true,
+    },
   );
-  return action === "Switch and Restart Extensions";
+  if (selection === undefined) {
+    return false;
+  }
+  if (selection.includes(dontAskAgainItem)) {
+    await vscode.workspace
+      .getConfiguration("claudeProvider")
+      .update(
+        "confirmBeforeReload",
+        false,
+        vscode.ConfigurationTarget.Global,
+      );
+  }
+  return true;
 }
 
 export type OverrideDecision =
