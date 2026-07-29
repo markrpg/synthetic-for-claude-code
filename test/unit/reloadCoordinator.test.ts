@@ -58,9 +58,6 @@ describe("ReloadCoordinator", () => {
     vscodeMocks.showInformationMessage.mockReturnValue(
       new Promise<string | undefined>(() => undefined),
     );
-    vscodeMocks.executeCommand.mockReturnValue(
-      new Promise<undefined>(() => undefined),
-    );
     const coordinator = new ReloadCoordinator(createContext());
     await coordinator.markPending({
       provider: "anthropic",
@@ -76,8 +73,14 @@ describe("ReloadCoordinator", () => {
       expect.stringContaining("Open Claude Code to continue."),
       "Dismiss",
     );
-    expect(vscodeMocks.executeCommand).toHaveBeenCalledWith(
+    expect(vscodeMocks.executeCommand).not.toHaveBeenCalledWith(
       "workbench.action.webview.reloadWebviewAction",
+    );
+    expect(vscodeMocks.executeCommand).not.toHaveBeenCalledWith(
+      "claude-vscode.editor.openLast",
+    );
+    expect(vscodeMocks.executeCommand).not.toHaveBeenCalledWith(
+      "claude-vscode.newConversation",
     );
   });
 });

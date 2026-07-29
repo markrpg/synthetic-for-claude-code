@@ -29,7 +29,7 @@ suite("Synthetic for Claude Code extension", () => {
       extension.packageJSON.displayName,
       "Synthetic for Claude Code",
     );
-    assert.equal(extension.packageJSON.version, "1.2.5");
+    assert.equal(extension.packageJSON.version, "1.2.6");
     await extension.activate();
     assert.equal(extension.isActive, true);
 
@@ -37,10 +37,6 @@ suite("Synthetic for Claude Code extension", () => {
     assert.ok(
       commands.includes("workbench.action.restartExtensionHost"),
       "The editor does not provide the extension-host restart command",
-    );
-    assert.ok(
-      commands.includes("workbench.action.webview.reloadWebviewAction"),
-      "The editor does not provide the webview reload command",
     );
     for (const command of [
       "claudeProvider.select",

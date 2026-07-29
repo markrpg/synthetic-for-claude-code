@@ -30,7 +30,7 @@ The status bar shows the active provider and live Synthetic quota:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.5.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.6.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -46,7 +46,7 @@ Click the `Claude: …` status item or run **Synthetic for Claude Code: Select P
 - Choose **Configure Synthetic model routing** to assign models to Claude roles.
 - Choose **View Synthetic quota and usage** for current limits and regeneration details.
 
-Provider changes restart Cursor's extension host so Claude Code receives the new environment, then refresh existing webviews so an open Claude Code panel reflects the new provider and models. The editor window, workspace, and conversation remain open; active Claude requests and subagents stop while the extensions restart.
+Provider changes restart Cursor's extension host so Claude Code receives the new environment. The Claude Code webview is left intact so its active conversation and route survive the restart; the extension never runs the global **Reload Webviews** command. The editor window and workspace remain open, while active Claude requests and subagents stop during the extension restart.
 
 If the status item is hidden, run **Synthetic for Claude Code: Use Anthropic** or **Synthetic for Claude Code: Use Synthetic** from the Command Palette.
 

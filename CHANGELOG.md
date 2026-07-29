@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.6
+
+- Fixed an open Claude Code tab remaining blank after a provider switch.
+- Removed the global **Reload Webviews** step, which discarded Claude Code's in-memory route to the active conversation.
+- Preserve the current conversation across the extension-host restart without opening or forcing a fresh conversation.
+
 ## 1.2.5
 
 - Refresh existing webviews after the extension host restarts so an open Claude Code panel reflects the newly selected provider and models.

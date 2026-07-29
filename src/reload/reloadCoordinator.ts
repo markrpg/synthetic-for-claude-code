@@ -53,17 +53,6 @@ export class ReloadCoordinator {
       return;
     }
 
-    void vscode.commands
-      .executeCommand("workbench.action.webview.reloadWebviewAction")
-      .then(
-        undefined,
-        () => {
-          void vscode.window.showWarningMessage(
-            "Claude Code was reconfigured, but its view could not be refreshed automatically. Run “Developer: Reload Webviews” from the Command Palette.",
-          );
-        },
-      );
-
     const overrideNote = pending.workspaceOverride
       ? " A workspace or folder setting still overrides the global selection."
       : "";
