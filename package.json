@@ -8,11 +8,11 @@
   "publisher": "private",
   "repository": {
     "type": "git",
-    "url": "https://github.com/markrpg/synthetic-for-claude-code.git"
+    "url": "https://github.com/markrpg/modelhop-for-claude-code.git"
   },
-  "homepage": "https://github.com/markrpg/synthetic-for-claude-code#readme",
+  "homepage": "https://github.com/markrpg/modelhop-for-claude-code#readme",
   "bugs": {
-    "url": "https://github.com/markrpg/synthetic-for-claude-code/issues"
+    "url": "https://github.com/markrpg/modelhop-for-claude-code/issues"
   },
   "engines": {
     "vscode": "^1.96.0"

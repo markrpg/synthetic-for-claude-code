@@ -36,7 +36,7 @@ Synthetic exposes Kimi K3 as `hf:moonshotai/Kimi-K3`. ModelHop uses that canonic
 ## Install
 
 1. Install [Claude Code for VS Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code).
-2. Download `modelhop-for-claude-code-2.1.0.vsix` from the [latest release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+2. Download `modelhop-for-claude-code-2.1.0.vsix` from the [latest release](https://github.com/markrpg/modelhop-for-claude-code/releases/latest).
 3. Run **Extensions: Install from VSIX...** in Cursor or VS Code.
 4. Select the VSIX and reload the editor.
 

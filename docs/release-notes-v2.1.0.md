@@ -26,4 +26,4 @@ The ChatGPT/Codex route remains Experimental.
 
 ## Local build
 
-The packaged file is `modelhop-for-claude-code-2.1.0.vsix`. No repository, release, tag, or marketplace update is performed by the local build.
+The packaged file is `modelhop-for-claude-code-2.1.0.vsix`.
