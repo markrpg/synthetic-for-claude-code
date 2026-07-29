@@ -26,11 +26,11 @@ export async function confirmProviderSwitch(
   const action = await vscode.window.showWarningMessage(
     `Switch Claude Code from ${currentProviderLabel(
       current,
-    )} to ${target.shortLabel}? Cursor must reload for Claude Code to receive the new environment. Any active Claude Code generation, Bash command, or subagent will stop.`,
+    )} to ${target.shortLabel}? Cursor's extensions must restart for Claude Code to receive the new environment. The editor window will remain open, but any active Claude Code generation, Bash command, or subagent will stop.`,
     { modal: true },
-    "Switch and Reload",
+    "Switch and Restart Extensions",
   );
-  return action === "Switch and Reload";
+  return action === "Switch and Restart Extensions";
 }
 
 export type OverrideDecision =

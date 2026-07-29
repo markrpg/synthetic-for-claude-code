@@ -43,7 +43,7 @@ Choose from recommended aliases and currently available models:
 
 ## Install
 
-1. Download `synthetic-for-claude-code-1.2.3.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
+1. Download `synthetic-for-claude-code-1.2.4.vsix` from the [latest GitHub release](https://github.com/markrpg/synthetic-for-claude-code/releases/latest).
 2. In Cursor, run **Extensions: Install from VSIX…** from the Command Palette.
 3. Select the downloaded VSIX.
 4. Reload Cursor when prompted.
@@ -59,7 +59,7 @@ Click the `Claude: …` status item or run **Synthetic for Claude Code: Select P
 - Choose **Configure Synthetic model routing** to assign models to Claude roles.
 - Choose **View Synthetic quota and usage** for current limits and regeneration details.
 
-Provider changes require a Cursor reload. Active Claude requests and subagents stop during that reload.
+Provider changes restart Cursor's extension host so Claude Code receives the new environment. The editor window and workspace remain open; active Claude requests and subagents stop while the extensions restart.
 
 If the status item is hidden, run **Synthetic for Claude Code: Use Anthropic** or **Synthetic for Claude Code: Use Synthetic** from the Command Palette.
 

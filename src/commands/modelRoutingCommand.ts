@@ -85,12 +85,12 @@ export class ModelRoutingCommand {
     }
 
     const action = await vscode.window.showWarningMessage(
-      "Synthetic model routing is saved. Apply it now? Cursor will reload and active Claude Code work will stop.",
+      "Synthetic model routing is saved. Apply it now? Cursor's extensions will restart while the editor window stays open. Active Claude Code work will stop.",
       { modal: true },
-      "Apply and Reload",
+      "Apply and Restart Extensions",
       "Later",
     );
-    if (action === "Apply and Reload") {
+    if (action === "Apply and Restart Extensions") {
       await this.switchCommand.execute("synthetic", {
         skipConfirmation: true,
       });

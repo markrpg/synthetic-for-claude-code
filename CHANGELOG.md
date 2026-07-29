@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.4
+
+- Restart Cursor's extension host after provider, credential, or active model-routing changes instead of reloading the entire editor window.
+- Keep the editor window and workspace open while ensuring Claude Code receives the new provider environment.
+
 ## 1.2.3
 
 - Fixed the provider menu remaining stuck on **Activating Extensions…** after a provider-switch reload.

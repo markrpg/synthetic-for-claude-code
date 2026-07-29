@@ -208,8 +208,8 @@ export class SwitchProviderCommand {
         },
         reload: async () => {
           this.logger.info("Configuration verification passed");
-          this.logger.info("Reload requested");
-          await this.reloadCoordinator.reloadWindow();
+          this.logger.info("Extension host restart requested");
+          await this.reloadCoordinator.restartExtensionHost();
         },
       },
     );
