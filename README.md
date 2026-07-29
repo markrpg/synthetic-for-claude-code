@@ -1,10 +1,16 @@
-# ModelHop for Claude Code
+<p align="center">
+  <img src="docs/images/modelhop-logo.png" alt="ModelHop logo" width="240">
+</p>
+
+<h1 align="center">ModelHop for Claude Code</h1>
 
 Use Anthropic, Synthetic, OpenAI API, or your ChatGPT/Codex allowance from the Claude Code editor extension in Cursor and VS Code. ModelHop handles credentials, per-role model routing, usage, provider switching, and conversation compatibility.
 
 > **Want Kimi K3 in Claude Code? [Create a Synthetic account](https://synthetic.new/?referral=mTRNs0GS)**
 >
 > This is the maintainer's referral link.
+
+[Support ModelHop on Buy Me a Coffee](https://buymeacoffee.com/markrpg).
 
 ModelHop targets Anthropic's graphical [Claude Code extension for VS Code and Cursor](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code). It does not configure standalone Claude Code CLI sessions.
 
@@ -63,7 +69,9 @@ OpenAI starts with:
 
 The OpenAI API picker reads `/v1/models` and shows models in ModelHop's bundled Claude-tool compatibility catalogue. The Codex picker uses the signed-in account's `model/list` response, including its supported reasoning efforts. A missing configured model stops the switch and opens reconfiguration; ModelHop does not silently substitute another model.
 
-Synthetic model routing uses the provider's live model list:
+Synthetic model routing uses the provider's live model list.
+
+![Claude Code selecting a GPT model through ModelHop's Codex route](docs/images/codex-model-picker.png)
 
 ## Usage
 
@@ -72,6 +80,8 @@ The status bar changes with the active provider.
 - Synthetic shows live five-hour and weekly quota, reset timing, and regeneration details. It refreshes every minute by default and when the editor regains focus.
 - OpenAI API shows bridge-session input, cached input, output tokens, request count, estimated cost for catalogued models, and rate-limit headroom. The [OpenAI usage dashboard](https://platform.openai.com/usage) remains authoritative.
 - ChatGPT/Codex shows subscription usage, reset time, and available reset credits. Consuming a reset credit always requires a separate confirmation.
+
+![ModelHop showing the active Codex model and remaining allowance](docs/images/codex-status-bar.png)
 
 ![Synthetic five-hour and weekly quota in the status bar](docs/images/status-bar.png)
 
@@ -110,7 +120,7 @@ The bridge survives full-window reloads and coordinates through a fixed loopback
 
 ## Experimental Codex limits
 
-The Codex route depends on OpenAI's experimental app-server `dynamicTools` interface. This local v2 candidate includes mocked multi-tool, isolation, cancellation, and reload-continuity coverage. Live account tests remain opt-in because they can consume a user's allowance. Keep this route marked Experimental until the live compatibility matrix passes.
+The Codex route depends on OpenAI's experimental app-server `dynamicTools` interface. This v2 candidate includes mocked multi-tool, isolation, cancellation, and reload-continuity coverage. It has also passed live account testing for model discovery, usage reporting, normal prompting, and Claude MCP tool registration. Keep this route marked Experimental until the wider multi-tool and reload-recovery matrix passes.
 
 ## Remove
 

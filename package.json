@@ -3,6 +3,7 @@
   "displayName": "ModelHop for Claude Code",
   "description": "Run Claude Code with Anthropic, Synthetic, OpenAI API, or an experimental ChatGPT/Codex bridge, with per-role model routing and live usage.",
   "version": "2.0.0",
+  "icon": "media/modelhop-icon.png",
   "license": "MIT",
   "publisher": "private",
   "repository": {
