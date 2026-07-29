@@ -11,7 +11,7 @@
 - Generalized status items, provider menus, validation, snapshots, and full-window reload handling.
 - Expanded automatic conversation repair to cover tool names, IDs, links, and incompatible thinking blocks across all provider transitions.
 - Added mocked Responses and Codex app-server compatibility coverage. The Codex route remains Experimental pending opt-in live testing.
-- Fixed Codex app-server sandbox serialization, retained early turn failures, bounded stalled requests, and forced stale detached bridges to restart after the fix.
+- Fixed Codex app-server sandbox serialization and reserved dynamic-tool names, retained early turn failures, bounded stalled requests, and forced stale detached bridges to restart after compatibility fixes.
 
 ## 1.2.9
 

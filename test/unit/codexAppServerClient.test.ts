@@ -144,7 +144,7 @@ describe("CodexAppServerClient", () => {
           messages: [{ role: "user", content: "Read the README." }],
           tools: [
             {
-              name: "mcp:files/read",
+              name: "mcp__files__read",
               description: "Read a file",
               input_schema: { type: "object" },
             },
@@ -156,7 +156,7 @@ describe("CodexAppServerClient", () => {
 
       expect(first.stop_reason).toBe("tool_use");
       expect(tool.id).toMatch(/^[a-zA-Z0-9_-]+$/);
-      expect(tool.name).toBe("mcp:files/read");
+      expect(tool.name).toBe("mcp__files__read");
       expect(tool.input).toEqual({ path: "README.md" });
 
       const second = await client.run(
@@ -218,8 +218,11 @@ describe("CodexAppServerClient", () => {
       expect(JSON.stringify(threadStart)).toContain(
         '"dynamicTools"',
       );
-      expect(JSON.stringify(threadStart)).not.toContain(
-        "mcp:files/read",
+      const sentTools = Array.isArray(threadParams.dynamicTools)
+        ? threadParams.dynamicTools.filter(isRecord)
+        : [];
+      expect(sentTools[0]?.name).toBe(
+        "modelhop_mcp__files__read",
       );
     } finally {
       client.dispose();

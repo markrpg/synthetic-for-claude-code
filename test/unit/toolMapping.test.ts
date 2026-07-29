@@ -27,6 +27,31 @@ describe("bridge tool mapping", () => {
     expect(fromAnthropicToolId(mapped)).toBe(source);
   });
 
+  it("escapes Codex-reserved tool names and namespaces", () => {
+    const names = [
+      "mcp__runpod__attach-tag",
+      "codex_apps__github",
+      "tool_search",
+      "Read",
+    ];
+    const mapping = buildToolNameMapping(names);
+
+    expect(mapping.toOpenAI.get("mcp__runpod__attach-tag")).toBe(
+      "modelhop_mcp__runpod__attach-tag",
+    );
+    expect(mapping.toOpenAI.get("codex_apps__github")).toBe(
+      "modelhop_codex_apps__github",
+    );
+    expect(mapping.toOpenAI.get("tool_search")).toBe(
+      "modelhop_tool_search",
+    );
+    expect(mapping.toOpenAI.get("Read")).toBe("Read");
+    for (const original of names) {
+      const mapped = mapping.toOpenAI.get(original);
+      expect(mapping.fromOpenAI.get(mapped ?? "")).toBe(original);
+    }
+  });
+
   it("hashes unusually long IDs into a bounded Anthropic-safe value", () => {
     const mapped = toAnthropicToolId("tool:".repeat(100));
 

@@ -3,7 +3,7 @@ import type {
   ProviderId,
 } from "../providers/types.js";
 
-export const BRIDGE_PROTOCOL_VERSION = "2.0.0+codex-read-only";
+export const BRIDGE_PROTOCOL_VERSION = "2.0.0+codex-tool-names";
 
 export type BridgeProviderId = Extract<
   ProviderId,
