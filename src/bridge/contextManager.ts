@@ -54,6 +54,14 @@ export type ContextSummarizer = (
   signal?: AbortSignal,
 ) => Promise<string>;
 
+export interface ContextPreparationProgress {
+  phase: "counting" | "compacting" | "ready";
+  estimatedInputTokens?: number;
+  contextWindow: number;
+  threshold: number;
+  compacted?: boolean;
+}
+
 export interface ContextPreparationOptions {
   settings: ContextManagementSettings;
   contextWindow?: number;
@@ -64,6 +72,7 @@ export interface ContextPreparationOptions {
   ) => Promise<number | undefined>;
   signal?: AbortSignal;
   force?: boolean;
+  onProgress?: (progress: ContextPreparationProgress) => void;
 }
 
 const MAX_ENTRIES = 50;
@@ -459,8 +468,27 @@ export class ContextManager {
     const count = async (value: AnthropicRequest): Promise<number> =>
       (await options.tokenCounter?.(value, options.signal)) ??
       estimateAnthropicRequestTokens(value);
+    const report = (progress: ContextPreparationProgress): void => {
+      try {
+        options.onProgress?.(progress);
+      } catch {
+        // Observability must never make an inference request fail.
+      }
+    };
+    report({
+      phase: "counting",
+      contextWindow,
+      threshold,
+    });
     const fullEstimate = await count(request);
     if (!options.settings.enabled) {
+      report({
+        phase: "ready",
+        estimatedInputTokens: fullEstimate,
+        contextWindow,
+        threshold,
+        compacted: false,
+      });
       return {
         request,
         estimatedInputTokens: fullEstimate,
@@ -477,8 +505,22 @@ export class ContextManager {
     const existing = this.store.matching(messages);
     if (existing) {
       const reused = requestWithEntry(request, existing);
+      report({
+        phase: "counting",
+        estimatedInputTokens: fullEstimate,
+        contextWindow,
+        threshold,
+        compacted: true,
+      });
       const reusedEstimate = await count(reused);
       if (!options.force && reusedEstimate <= threshold) {
+        report({
+          phase: "ready",
+          estimatedInputTokens: reusedEstimate,
+          contextWindow,
+          threshold,
+          compacted: true,
+        });
         return {
           request: reused,
           estimatedInputTokens: reusedEstimate,
@@ -488,6 +530,13 @@ export class ContextManager {
         };
       }
     } else if (!options.force && fullEstimate <= threshold) {
+      report({
+        phase: "ready",
+        estimatedInputTokens: fullEstimate,
+        contextWindow,
+        threshold,
+        compacted: false,
+      });
       return {
         request,
         estimatedInputTokens: fullEstimate,
@@ -558,6 +607,13 @@ export class ContextManager {
         : []),
       ...serializeMessages(messages.slice(currentBoundary, boundary)),
     ];
+    report({
+      phase: "compacting",
+      estimatedInputTokens: fullEstimate,
+      contextWindow,
+      threshold,
+      compacted: true,
+    });
     const summary = await summarizeSections(
       sections,
       options.summarizer,
@@ -571,6 +627,13 @@ export class ContextManager {
     };
     this.store.set(entry);
     const compactedRequest = requestWithEntry(request, entry);
+    report({
+      phase: "counting",
+      estimatedInputTokens: fullEstimate,
+      contextWindow,
+      threshold,
+      compacted: true,
+    });
     const estimate = await count(compactedRequest);
     if (estimate > threshold) {
       throw new BridgeRequestError(
@@ -580,6 +643,13 @@ export class ContextManager {
         "context_window_exceeded",
       );
     }
+    report({
+      phase: "ready",
+      estimatedInputTokens: estimate,
+      contextWindow,
+      threshold,
+      compacted: true,
+    });
     return {
       request: compactedRequest,
       estimatedInputTokens: estimate,

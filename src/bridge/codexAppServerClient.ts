@@ -5,7 +5,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import type { OpenAIProviderSettings } from "../providers/types.js";
 import {
-  reasoningEffortForModel,
+  reasoningEffortForRequest,
   systemToText,
   translateAnthropicMessages,
   type AnthropicRequest,
@@ -265,6 +265,7 @@ export class CodexAppServerClient {
   private readonly sessions = new Map<string, CodexSession>();
   private readonly toolCallSessions = new Map<string, CodexSession>();
   private readonly modelContextWindows = new Map<string, number>();
+  private readonly modelReasoningEfforts = new Map<string, Set<string>>();
 
   public constructor(
     private readonly executable: string,
@@ -384,17 +385,11 @@ export class CodexAppServerClient {
       }),
     );
     const data = Array.isArray(response.data) ? response.data : [];
-    return data.filter(isRecord).map((model) => ({
-      id: typeof model.id === "string" ? model.id : "unknown",
-      displayName:
-        typeof model.displayName === "string"
-          ? model.displayName
-          : typeof model.id === "string"
-            ? model.id
-            : "Unknown model",
-      description:
-        typeof model.description === "string" ? model.description : "",
-      supportedReasoningEfforts: Array.isArray(model.supportedReasoningEfforts)
+    const models = data.filter(isRecord).map((model) => {
+      const id = typeof model.id === "string" ? model.id : "unknown";
+      const supportedReasoningEfforts = Array.isArray(
+        model.supportedReasoningEfforts,
+      )
         ? model.supportedReasoningEfforts
             .filter(isRecord)
             .map((effort) =>
@@ -403,9 +398,24 @@ export class CodexAppServerClient {
                 : "",
             )
             .filter(Boolean)
-        : [],
-      isDefault: model.isDefault === true,
-    }));
+        : [];
+      this.modelReasoningEfforts.set(
+        id,
+        new Set(supportedReasoningEfforts),
+      );
+      return {
+        id,
+        displayName:
+          typeof model.displayName === "string"
+            ? model.displayName
+            : id,
+        description:
+          typeof model.description === "string" ? model.description : "",
+        supportedReasoningEfforts,
+        isDefault: model.isDefault === true,
+      };
+    });
+    return models;
   }
 
   public async usage(): Promise<{
@@ -454,6 +464,8 @@ export class CodexAppServerClient {
       typeof request.model === "string" && request.model.trim()
         ? request.model
         : settings.defaultModel;
+    const effort = reasoningEffortForRequest(request, model, settings);
+    await this.assertReasoningEffortSupported(model, effort);
     const start = record(
       await this.request("thread/start", {
         model,
@@ -492,7 +504,7 @@ export class CodexAppServerClient {
       threadId,
       input: lastUserInput(request.messages),
       model,
-      effort: reasoningEffortForModel(model, settings),
+      effort,
     }));
     const turn = record(turnStart.turn);
     session.turnId =
@@ -508,6 +520,22 @@ export class CodexAppServerClient {
     return typeof model === "string"
       ? this.modelContextWindows.get(model)
       : undefined;
+  }
+
+  private async assertReasoningEffortSupported(
+    model: string,
+    effort: string,
+  ): Promise<void> {
+    if (!this.modelReasoningEfforts.has(model)) {
+      await this.models().catch(() => undefined);
+    }
+    const supported = this.modelReasoningEfforts.get(model);
+    if (!supported || supported.size === 0 || supported.has(effort)) {
+      return;
+    }
+    throw new Error(
+      `Codex model ${model} does not support ${effort} reasoning. Available efforts: ${[...supported].join(", ")}. Reconfigure this ModelHop route instead of silently substituting another effort.`,
+    );
   }
 
   public async summarize(

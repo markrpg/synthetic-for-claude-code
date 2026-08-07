@@ -138,4 +138,71 @@ describe("ContextManager", () => {
     ]);
     expect(units[0]).toMatchObject({ start: 0, end: 1, complete: false });
   });
+
+  it("reports counting and compaction without exposing content", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "modelhop-context-"));
+    const store = new EncryptedContextStore(
+      path.join(root, "context.json"),
+      "secret",
+    );
+    const manager = new ContextManager(store);
+    const progress: unknown[] = [];
+    try {
+      await manager.prepare(
+        {
+          model: "gpt-test",
+          max_tokens: 512,
+          messages: longConversation(),
+        },
+        {
+          settings,
+          summarizer: async () => "Compact factual summary.",
+          onProgress: (event) => progress.push(event),
+        },
+      );
+      expect(progress).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ phase: "counting" }),
+          expect.objectContaining({ phase: "compacting" }),
+          expect.objectContaining({
+            phase: "ready",
+            compacted: true,
+          }),
+        ]),
+      );
+      expect(JSON.stringify(progress)).not.toContain("xxxx");
+    } finally {
+      await store.flush();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not fail inference preparation when an activity observer fails", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "modelhop-context-"));
+    const store = new EncryptedContextStore(
+      path.join(root, "context.json"),
+      "secret",
+    );
+    try {
+      await expect(
+        new ContextManager(store).prepare(
+          {
+            model: "gpt-test",
+            max_tokens: 512,
+            messages: [{ role: "user", content: "hello" }],
+          },
+          {
+            settings,
+            summarizer: async () => "Unused.",
+            onProgress: () => {
+              throw new Error("observer failed");
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ compacted: false });
+    } finally {
+      await store.flush();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

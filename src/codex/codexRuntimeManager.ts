@@ -209,7 +209,9 @@ export class CodexRuntimeManager {
             );
           }
           await pipeline(
-            Readable.fromWeb(response.body),
+            Readable.from(
+              response.body as unknown as AsyncIterable<Uint8Array>,
+            ),
             createWriteStream(archivePath, { mode: 0o600 }),
           );
           progress.report({ message: "Verifying package integrity…" });

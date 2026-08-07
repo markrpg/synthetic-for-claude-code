@@ -2,7 +2,7 @@
   "name": "claude-provider-switcher",
   "displayName": "ModelHop for Claude Code",
   "description": "Run Claude Code with Anthropic, Synthetic, OpenAI API, or an experimental ChatGPT/Codex bridge, with per-role model routing and live usage.",
-  "version": "2.1.0",
+  "version": "2.2.4",
   "icon": "media/modelhop-icon.png",
   "license": "MIT",
   "publisher": "private",
@@ -48,14 +48,22 @@
     "clean": "node ./scripts/clean.mjs",
     "compile": "node ./esbuild.mjs",
     "watch": "node ./esbuild.mjs --watch",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint src test/unit",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.mobile-test.json",
+    "lint": "eslint src test/unit test/mobile test/fixtures/remote-mobile playwright.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "compile:integration": "tsc -p tsconfig.integration.json",
     "test:integration": "npm run compile && npm run compile:integration && node ./scripts/run-integration.mjs",
-    "check": "npm run typecheck && npm run lint && npm test && npm run compile",
-    "package": "npm run clean && npm run check && vsce package --no-dependencies --allow-missing-repository --out modelhop-for-claude-code-2.1.0.vsix"
+    "build:remote:fixture": "node ./scripts/build-remote-fixture.mjs",
+    "remote:fixture": "npm run build:remote:fixture && node ./scripts/serve-remote-fixture.mjs",
+    "test:mobile": "playwright test --config playwright.config.ts",
+    "test:mobile:update": "playwright test --config playwright.config.ts --update-snapshots",
+    "check": "npm run typecheck && npm run lint && npm test && npm run compile && node ./scripts/smoke-remote-routes.mjs",
+    "remote:reliability-gate": "node ./scripts/remote-reliability-gate.mjs",
+    "package": "npm run remote:reliability-gate",
+    "package:verify": "node ./scripts/verify-vsix.mjs",
+    "package:smoke-install": "node ./scripts/smoke-install-vsix.mjs",
+    "release:local": "node ./scripts/release-local.mjs"
   },
   "contributes": {
     "commands": [
@@ -138,6 +146,30 @@
       {
         "command": "modelHop.openSettings",
         "title": "ModelHop: Open Settings"
+      },
+      {
+        "command": "modelHop.continueOnPhone",
+        "title": "ModelHop: Continue on Phone"
+      },
+      {
+        "command": "modelHop.returnToLaptop",
+        "title": "ModelHop: Return to Laptop"
+      },
+      {
+        "command": "modelHop.stopRemoteAccess",
+        "title": "ModelHop: Stop Remote Access"
+      },
+      {
+        "command": "modelHop.managePairedDevices",
+        "title": "ModelHop: Manage Paired Devices"
+      },
+      {
+        "command": "modelHop.recoverRemoteConversation",
+        "title": "ModelHop: Recover Last Remote Conversation"
+      },
+      {
+        "command": "modelHop.createRemoteSupportBundle",
+        "title": "ModelHop: Create Privacy-Safe Remote Support Bundle"
       }
     ],
     "configuration": {
@@ -183,6 +215,59 @@
           "minimum": 8192,
           "maximum": 262144,
           "description": "Approximate amount of recent conversation history ModelHop tries to retain verbatim after compaction."
+        },
+        "modelHop.remote.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Experimental encrypted phone continuation through an account-free Cloudflare Quick Tunnel."
+        },
+        "modelHop.remote.idleTimeout": {
+          "type": "string",
+          "enum": [
+            "15m",
+            "30m",
+            "60m",
+            "8h",
+            "manual"
+          ],
+          "enumItemLabels": [
+            "15 minutes",
+            "30 minutes",
+            "1 hour",
+            "8 hours",
+            "Until manually stopped"
+          ],
+          "enumDescriptions": [
+            "Return the completed conversation after 15 minutes without phone activity.",
+            "Return the completed conversation after 30 minutes without phone activity.",
+            "Return the completed conversation after 60 minutes without phone activity.",
+            "Keep the completed conversation available until the eight-hour safety limit.",
+            "Keep the completed conversation available until you return it manually or the eight-hour safety limit is reached."
+          ],
+          "default": "60m",
+          "description": "How long a completed remote conversation remains available without phone activity. Active turns are always allowed to finish."
+        },
+        "modelHop.remote.inactivityMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "maximum": 480,
+          "deprecationMessage": "Use modelHop.remote.idleTimeout. Existing explicit values of 15, 30, 60, or 480 minutes are migrated at runtime; other values safely use 60 minutes.",
+          "description": "Deprecated completed-session inactivity timeout retained for compatibility."
+        },
+        "modelHop.remote.maxSessionHours": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 24,
+          "deprecationMessage": "ModelHop Remote now uses a fixed eight-hour safety limit. This legacy value is retained for compatibility but is ignored.",
+          "description": "Deprecated maximum session duration retained for compatibility."
+        },
+        "modelHop.remote.cloudflaredPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional absolute path to a user-managed cloudflared executable. When empty, ModelHop downloads and verifies its pinned runtime after confirmation."
         },
         "modelHop.synthetic.baseUrl": {
           "type": "string",
@@ -248,27 +333,62 @@
         },
         "modelHop.openaiApi.defaultReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "high"
         },
         "modelHop.openaiApi.opusReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "high"
         },
         "modelHop.openaiApi.sonnetReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "medium"
         },
         "modelHop.openaiApi.haikuReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "low"
         },
         "modelHop.openaiApi.subagentReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "medium"
         },
         "modelHop.openaiCodex.defaultModel": {
@@ -293,27 +413,62 @@
         },
         "modelHop.openaiCodex.defaultReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "high"
         },
         "modelHop.openaiCodex.opusReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "high"
         },
         "modelHop.openaiCodex.sonnetReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "medium"
         },
         "modelHop.openaiCodex.haikuReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "low"
         },
         "modelHop.openaiCodex.subagentReasoningEffort": {
           "type": "string",
-          "enum": ["none", "low", "medium", "high", "xhigh", "max"],
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "default": "medium"
         },
         "claudeProvider.confirmBeforeReload": {
@@ -372,18 +527,28 @@
     }
   },
   "dependencies": {
-    "tar": "^7.4.3"
+    "markdown-it": "^14.1.0",
+    "tar": "^7.4.3",
+    "three": "0.134.0",
+    "vanta": "0.5.24"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.220",
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.17.0",
+    "@playwright/test": "^1.62.1",
+    "@types/markdown-it": "^14.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.10.2",
+    "@types/qrcode": "^1.5.6",
+    "@types/three": "0.134.0",
     "@types/vscode": "^1.96.0",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.2",
     "esbuild": "^0.24.2",
     "eslint": "^9.17.0",
     "mocha": "^11.0.1",
+    "qrcode": "^1.5.4",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.19.1",
     "vitest": "^2.1.8"

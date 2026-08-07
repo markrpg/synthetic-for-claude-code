@@ -29,6 +29,10 @@ import {
 } from "./credentialCommands.js";
 
 export class SwitchProviderCommand {
+  private executionGuard:
+    | (() => boolean | Promise<boolean>)
+    | undefined;
+
   public constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly settingsService: ClaudeSettingsService,
@@ -42,10 +46,27 @@ export class SwitchProviderCommand {
     private readonly bridgeManager?: BridgeManager,
   ) {}
 
+  public setExecutionGuard(
+    guard: () => boolean | Promise<boolean>,
+  ): void {
+    this.executionGuard = guard;
+  }
+
   public async execute(
     providerId: ProviderId,
-    options: { skipConfirmation?: boolean } = {},
+    options: {
+      skipConfirmation?: boolean;
+      reload?: boolean;
+      allowDuringRemoteSession?: boolean;
+    } = {},
   ): Promise<void> {
+    if (
+      !options.allowDuringRemoteSession &&
+      this.executionGuard &&
+      !(await this.executionGuard())
+    ) {
+      return;
+    }
     const configuration = this.settingsService.read();
     if (
       configuration.global.containerWasMalformed ||
@@ -272,6 +293,9 @@ export class SwitchProviderCommand {
           );
         },
         markPendingReload: async (activeProvider) => {
+          if (options.reload === false) {
+            return;
+          }
           await this.reloadCoordinator.markPending({
             provider: activeProvider,
             switchedAt: Date.now(),
@@ -280,10 +304,19 @@ export class SwitchProviderCommand {
           });
         },
         clearPendingReload: async () => {
+          if (options.reload === false) {
+            return;
+          }
           await this.reloadCoordinator.clearPending();
         },
         reload: async () => {
           this.logger.info("Configuration verification passed");
+          if (options.reload === false) {
+            this.logger.info(
+              "Window reload deferred while ModelHop Remote owns the session",
+            );
+            return;
+          }
           this.logger.info("Full editor window reload requested");
           await this.reloadCoordinator.reloadWindow();
         },

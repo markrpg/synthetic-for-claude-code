@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.web.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [
+      "node",
+      "@playwright/test"
+    ]
+  },
+  "include": [
+    "src/providers/types.ts",
+    "src/remote/types.ts",
+    "src/remote/web/**/*.d.ts",
+    "src/types/**/*.d.ts",
+    "src/remote/web/mobileApp.ts",
+    "src/remote/web/presentation.ts",
+    "test/fixtures/remote-mobile/**/*.ts",
+    "test/mobile/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": []
+}

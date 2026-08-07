@@ -23,5 +23,8 @@
     "src/**/*.ts",
     "test/unit/**/*.ts",
     "vitest.config.mts"
+  ],
+  "exclude": [
+    "src/remote/web/**/*.ts"
   ]
 }

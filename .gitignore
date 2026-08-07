@@ -4,6 +4,8 @@ dist-test/
 coverage/
 .nyc_output/
 .vscode-test/
+playwright-report/
+test-results/
 
 *.vsix
 *.tgz

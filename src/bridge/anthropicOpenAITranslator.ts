@@ -21,6 +21,8 @@ export interface AnthropicRequest {
   temperature?: unknown;
   stop_sequences?: unknown;
   metadata?: unknown;
+  output_config?: unknown;
+  thinking?: unknown;
 }
 
 export interface TranslationPlan {
@@ -295,6 +297,40 @@ export function reasoningEffortForModel(
     .sort((left, right) => rank[right] - rank[left])[0] ?? "medium";
 }
 
+const OPENAI_REASONING_EFFORTS = new Set<OpenAIReasoningEffort>([
+  "none",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
+/**
+ * Claude Code expresses a per-turn /effort choice through
+ * `output_config.effort`. Prefer that explicit choice over ModelHop's stored
+ * role default so Claude's native control changes the real upstream GPT/Codex
+ * turn instead of only changing its local UI.
+ *
+ * The separate Anthropic `thinking` field is intentionally not translated:
+ * OpenAI reasoning continuity is carried as encrypted provider-native items,
+ * and ModelHop must never fabricate Anthropic thinking signatures.
+ */
+export function reasoningEffortForRequest(
+  request: AnthropicRequest,
+  model: string,
+  settings: OpenAIProviderSettings,
+): OpenAIReasoningEffort {
+  const outputConfig = isRecord(request.output_config)
+    ? request.output_config
+    : undefined;
+  const requested = stringValue(outputConfig?.effort);
+  return requested &&
+    OPENAI_REASONING_EFFORTS.has(requested as OpenAIReasoningEffort)
+    ? (requested as OpenAIReasoningEffort)
+    : reasoningEffortForModel(model, settings);
+}
+
 function safetyIdentifier(metadata: unknown): string {
   const source = isRecord(metadata)
     ? JSON.stringify(metadata)
@@ -325,12 +361,13 @@ export function translateAnthropicRequest(
     typeof request.max_tokens === "number"
       ? request.max_tokens
       : 16_384;
+  const effort = reasoningEffortForRequest(request, model, settings);
   const body: Record<string, unknown> = {
     model,
     input,
     instructions: systemToText(request.system),
     max_output_tokens: maxOutput,
-    reasoning: { effort: reasoningEffortForModel(model, settings) },
+    reasoning: { effort },
     store: false,
     include: ["reasoning.encrypted_content"],
     stream: request.stream === true,
@@ -345,7 +382,7 @@ export function translateAnthropicRequest(
     request: body,
     toolNames,
     model,
-    effort: reasoningEffortForModel(model, settings),
+    effort,
     responseSignatureSeed: JSON.stringify(input),
   };
 }

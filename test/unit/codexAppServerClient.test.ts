@@ -130,7 +130,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         data: [{
           id: "gpt-5.6-sol",
           displayName: "GPT-5.6 Sol",
-          supportedReasoningEfforts: [{ reasoningEffort: "high" }],
+          supportedReasoningEfforts: [
+            { reasoningEffort: "high" },
+            { reasoningEffort: "xhigh" },
+          ],
         }],
       },
     });
@@ -166,6 +169,7 @@ describe("CodexAppServerClient", () => {
       const first = await client.run(
         {
           model: "gpt-5.6-sol",
+          output_config: { effort: "xhigh" },
           system: "Use only the supplied Claude tools.",
           messages: [{ role: "user", content: "Read the README." }],
           tools: [
@@ -256,8 +260,31 @@ describe("CodexAppServerClient", () => {
       const turnParams = isRecord(turnStart?.params)
         ? turnStart.params
         : {};
-      expect(turnParams.effort).toBe("high");
+      expect(turnParams.effort).toBe("xhigh");
       expect(client.contextWindow("gpt-5.6-sol")).toBe(128_000);
+    } finally {
+      client.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a Codex effort omitted from the authoritative model catalog", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "modelhop-codex-test-"));
+    const { executable } = await createFakeAppServer(root);
+    const client = new CodexAppServerClient(executable, root);
+    try {
+      await expect(
+        client.run(
+          {
+            model: "gpt-5.6-sol",
+            output_config: { effort: "max" },
+            messages: [{ role: "user", content: "Use max effort." }],
+          },
+          DEFAULT_OPENAI_SETTINGS,
+        ),
+      ).rejects.toThrow(
+        "does not support max reasoning. Available efforts: high, xhigh",
+      );
     } finally {
       client.dispose();
       await rm(root, { recursive: true, force: true });

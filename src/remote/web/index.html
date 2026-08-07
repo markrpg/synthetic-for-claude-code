@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#101315" />
+    <meta
+      name="description"
+      content="Securely continue a local Claude Code conversation from your phone."
+    />
+    <title>ModelHop Remote</title>
+    <link rel="icon" href="/icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to current task</a>
+
+    <main id="pairing-view" class="pairing-shell" aria-labelledby="pairing-title">
+      <section class="pairing-card">
+        <div class="brand-mark" aria-hidden="true">
+          <img src="/icon.png" alt="" />
+        </div>
+        <p class="eyebrow">ModelHop Remote · Experimental</p>
+        <h1 id="pairing-title">Taking you back to your code.</h1>
+        <p id="pairing-message" class="pairing-copy">
+          Establishing an encrypted connection to your Mac…
+        </p>
+        <div id="pairing-code-wrap" class="pairing-code-wrap" hidden>
+          <p>Compare this code with the one shown on your laptop</p>
+          <output id="pairing-code" class="pairing-code" aria-live="polite"></output>
+          <p class="pairing-hint">Approve only when both codes match. You do not need to type it.</p>
+        </div>
+        <div class="connection-meter" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <p class="security-note">
+          Your repository and provider credentials remain on your Mac.
+        </p>
+      </section>
+    </main>
+
+    <div id="app" class="app-shell" data-testid="app-shell" hidden>
+      <header id="task-header" class="task-header" data-testid="task-header">
+        <div class="task-header-row">
+          <button
+            id="connection-button"
+            class="brand-lockup connection-lockup"
+            type="button"
+            aria-label="Show remote connection status"
+          >
+            <span class="brand-mark brand-mark-small" aria-hidden="true">
+              <img src="/icon.png" alt="" />
+            </span>
+            <span class="brand-copy">
+              <strong class="brand-wordmark">ModelHop</strong>
+              <span class="brand-status-line">
+                <span id="connection-label">Remote</span>
+                <span aria-hidden="true">·</span>
+                <span class="connection-dot" aria-hidden="true"></span>
+                <span id="connection-state" data-testid="connection-state">Secure</span>
+              </span>
+            </span>
+          </button>
+
+          <button
+            id="compact-route-button"
+            class="compact-route-button"
+            type="button"
+            aria-label="Open provider and model settings"
+            aria-haspopup="dialog"
+          >
+            <span class="compact-phase-dot" aria-hidden="true"></span>
+            <span class="compact-route-copy">
+              <strong id="compact-route-label">Loading provider…</strong>
+              <small id="compact-phase-label">Starting remote session</small>
+            </span>
+            <span class="compact-route-disclosure" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <div class="task-header-tools" role="group" aria-label="View controls">
+          <button
+            id="header-collapse-button"
+            class="header-tool-button"
+            type="button"
+            aria-label="Minimise header"
+            aria-controls="task-summary task-view-tabs"
+            aria-expanded="true"
+            title="Minimise header"
+          >
+            <svg class="collapse-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 7.5h12" />
+              <path d="m8 15 4-4 4 4" />
+            </svg>
+          </button>
+          <button
+            id="fullscreen-button"
+            class="header-tool-button"
+            type="button"
+            aria-label="Enter fullscreen"
+            aria-pressed="false"
+            title="Enter fullscreen"
+            hidden
+          >
+            <svg class="fullscreen-icon fullscreen-enter" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 4H4v5M15 4h5v5M9 20H4v-5m11 5h5v-5" />
+            </svg>
+            <svg class="fullscreen-icon fullscreen-exit" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9h5V4m11 5h-5V4M4 15h5v5m11-5h-5v5" />
+            </svg>
+          </button>
+        </div>
+
+        <section id="task-summary" class="task-summary" aria-labelledby="task-title" data-testid="phase-banner">
+          <div class="task-phase-row">
+            <span id="phase-dot" class="phase-dot" aria-hidden="true"></span>
+            <strong id="task-phase">Starting remote session</strong>
+            <span class="elapsed-pair" aria-label="Elapsed time">
+              <span class="elapsed-item"><span id="turn-elapsed-label" hidden>Turn</span> <time id="task-elapsed" class="task-elapsed" datetime="PT0S">—</time></span>
+              <span id="operation-elapsed-item" class="elapsed-item" hidden><span>Return</span> <time id="operation-elapsed" class="task-elapsed" datetime="PT0S">—</time></span>
+            </span>
+          </div>
+          <h1 id="task-title">Claude Code</h1>
+          <button id="route-button" class="route-button" type="button" aria-haspopup="dialog">
+            <span id="route-label">Loading provider…</span>
+            <span
+              id="reasoning-state-pill"
+              class="reasoning-state-pill"
+              aria-label="Reasoning state"
+              hidden
+            ></span>
+            <span id="usage-value" class="route-usage" data-testid="usage-summary">Usage unavailable</span>
+            <span aria-hidden="true">›</span>
+          </button>
+        </section>
+
+        <div id="task-view-tabs" class="view-tabs" role="tablist" aria-label="Chat view">
+          <button
+            id="view-conversation"
+            class="active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="conversation-view"
+          >
+            Conversation
+          </button>
+          <button
+            id="view-activity"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="activity-view"
+          >
+            Activity <span id="activity-count" class="count-badge" hidden>0</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="main-content" class="workspace" tabindex="-1">
+        <section
+          id="chat-panel"
+          class="panel chat-panel active"
+          role="tabpanel"
+          aria-labelledby="tab-chat"
+        >
+          <div id="chat-vanta" class="chat-vanta" aria-hidden="true"></div>
+          <canvas id="chat-mesh" class="chat-mesh" aria-hidden="true"></canvas>
+          <div id="conversation-view" class="task-view">
+            <section
+              id="work-graph"
+              class="work-graph"
+              aria-labelledby="work-graph-title"
+              data-testid="work-graph"
+              hidden
+            >
+              <div class="work-graph-heading">
+                <div>
+                  <span class="eyebrow">LIVE ON YOUR MAC</span>
+                  <h2 id="work-graph-title">Current work</h2>
+                </div>
+                <span id="work-graph-count" class="work-count">0</span>
+              </div>
+              <p id="work-graph-summary" class="work-graph-summary"></p>
+              <ol id="work-graph-items" class="work-graph-items"></ol>
+              <div id="work-graph-actions" class="work-graph-actions" hidden>
+                <button id="handback-continue-waiting" type="button">Continue waiting</button>
+                <button id="handback-cancel-request" type="button">Keep working remotely</button>
+                <button id="handback-cancel-work" class="danger-action" type="button">Cancel work and return now</button>
+              </div>
+            </section>
+            <div
+              id="conversation-scroll"
+              class="conversation-scroll"
+              data-testid="conversation-scroll"
+              aria-label="Claude Code conversation"
+              tabindex="0"
+            >
+              <div id="conversation" class="conversation">
+                <article class="message system-message">
+                  <p>Connected to the Claude Code session on your Mac.</p>
+                </article>
+              </div>
+              <div id="conversation-end" aria-hidden="true"></div>
+            </div>
+
+            <button
+              id="new-updates-button"
+              class="new-updates-button"
+              data-testid="new-updates"
+              type="button"
+              hidden
+            >
+              ↓ New updates <span id="new-updates-count"></span>
+            </button>
+          </div>
+
+          <div id="activity-view" class="task-view activity-view" data-testid="activity-view" tabindex="0" hidden>
+            <ol id="activity-timeline" class="activity-timeline" aria-label="Task activity">
+              <li class="activity-item activity-info">
+                <span class="activity-marker" aria-hidden="true"></span>
+                <div>
+                  <strong>Remote session connected</strong>
+                  <p>Waiting for Claude Code activity.</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <div id="approval-alert" class="approval-alert" role="status" hidden>
+            <span aria-hidden="true">!</span>
+            <button id="open-approval" type="button">Claude needs your approval</button>
+          </div>
+
+          <div id="attachments" class="attachment-row" role="list" aria-label="Pending attachments"></div>
+
+          <div id="suggestions" class="suggestions" role="listbox" hidden></div>
+
+          <form id="prompt-form" class="composer" data-testid="composer">
+            <label class="sr-only" for="prompt-input">Message Claude</label>
+            <textarea
+              id="prompt-input"
+              data-testid="prompt-input"
+              rows="1"
+              maxlength="30000"
+              placeholder="Ask Claude about this task…"
+            ></textarea>
+            <div class="composer-actions">
+              <div class="composer-leading">
+                <button
+                  id="attachment-button"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Add an attachment"
+                  aria-haspopup="dialog"
+                  title="Add context"
+                >
+                  <span aria-hidden="true">＋</span>
+                </button>
+                <span id="composer-state" class="composer-state">Ready</span>
+              </div>
+              <div class="composer-trailing">
+                <button
+                  id="cancel-button"
+                  class="stop-button"
+                  type="button"
+                  aria-label="Stop Claude"
+                  title="Stop Claude"
+                  hidden
+                >
+                  <span class="stop-label">Stop</span>
+                  <span class="stop-glyph" aria-hidden="true"></span>
+                </button>
+                <button
+                  id="send-button"
+                  class="send-button"
+                  data-testid="send"
+                  type="submit"
+                  aria-label="Send message"
+                  title="Send message"
+                >
+                  <span class="send-label">Send</span>
+                  <span class="send-glyph" aria-hidden="true">↑</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section
+          id="files-panel"
+          class="panel files-panel"
+          data-testid="files-view"
+          role="tabpanel"
+          aria-labelledby="tab-files"
+          tabindex="0"
+          hidden
+        >
+          <div class="section-heading compact-heading">
+            <div>
+              <p class="eyebrow">Repository</p>
+              <h2>Files</h2>
+            </div>
+            <div class="segmented-control" aria-label="File browser view">
+              <button id="constellation-view-button" class="active" type="button">Visual</button>
+              <button id="tree-view-button" type="button">List</button>
+            </div>
+          </div>
+          <form id="file-search-form" class="search-bar">
+            <label class="sr-only" for="file-search">Search workspace files</label>
+            <input id="file-search" type="search" placeholder="Search files and paths…" />
+            <label class="search-scope" for="file-search-scope">
+              <span class="sr-only">Search scope</span>
+              <select id="file-search-scope" aria-label="Search scope">
+                <option value="files">Files</option>
+                <option value="symbols">Code symbols</option>
+              </select>
+            </label>
+            <button type="submit">Search</button>
+          </form>
+
+          <nav id="file-breadcrumbs" class="file-breadcrumbs" aria-label="Current folder"></nav>
+          <p id="file-browser-status" class="file-browser-status" aria-live="polite">
+            Open a folder to load its complete contents.
+          </p>
+          <section
+            id="constellation-view"
+            class="constellation-card"
+            data-testid="file-constellation"
+            aria-label="Visual repository hierarchy"
+          >
+            <svg id="constellation-lines" class="constellation-lines" aria-hidden="true"></svg>
+            <div id="constellation-nodes" class="constellation-nodes"></div>
+          </section>
+          <nav id="file-tree" class="file-tree" data-testid="file-tree" aria-label="Accessible repository tree" tabindex="0" hidden></nav>
+          <nav id="file-results" class="file-results" aria-label="File search results" tabindex="0" hidden></nav>
+
+          <article id="file-preview" class="file-preview" data-testid="file-preview">
+            <header>
+              <strong id="file-title">Choose a file</strong>
+              <div>
+                <button id="copy-file-path" type="button" hidden>Copy path</button>
+                <button id="mention-file" type="button" hidden>Mention</button>
+                <button id="open-file-viewer" type="button" hidden>Full screen</button>
+              </div>
+            </header>
+            <img id="file-image" alt="" hidden />
+            <div id="file-line-actions" class="file-line-actions" hidden>
+              <span id="file-line-selection">No lines selected</span>
+              <button id="ask-file-lines" type="button">Ask about lines</button>
+              <button id="clear-file-lines" type="button">Clear</button>
+            </div>
+            <pre id="file-code-wrap" tabindex="0"><code id="file-content">Browse the hierarchy or search to inspect a file.</code></pre>
+          </article>
+        </section>
+
+        <section
+          id="activity-panel"
+          class="panel activity-panel"
+          role="tabpanel"
+          aria-labelledby="tab-activity"
+          tabindex="0"
+          hidden
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Local repository</p>
+              <h2>Activity and changes</h2>
+            </div>
+            <button id="refresh-changes" type="button">Refresh</button>
+          </div>
+          <ol id="activity-timeline-full" class="activity-timeline activity-timeline-full"></ol>
+          <details class="change-card">
+            <summary>Status</summary>
+            <pre><code id="git-status">Open this tab to load repository status.</code></pre>
+          </details>
+          <details class="change-card">
+            <summary>
+              Diff
+              <label id="staged-toggle-label" class="toggle-label">
+                <input id="staged-toggle" type="checkbox" />
+                <span>Staged</span>
+              </label>
+            </summary>
+            <pre><code id="git-diff">Open this tab to load the current diff.</code></pre>
+          </details>
+        </section>
+
+        <section
+          id="settings-panel"
+          class="panel settings-panel"
+          role="tabpanel"
+          aria-labelledby="tab-settings"
+          tabindex="0"
+          hidden
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Remote session</p>
+              <h2>Settings</h2>
+            </div>
+          </div>
+
+          <section class="settings-card" aria-labelledby="permission-mode-heading">
+            <h3 id="permission-mode-heading">Permission mode</h3>
+            <p>Auto-safe handles routine work and still asks before sensitive actions.</p>
+            <label for="permission-mode">Remote approvals</label>
+            <select id="permission-mode">
+              <option value="auto-safe" selected>Auto-safe (recommended)</option>
+              <option value="acceptEdits">Accept workspace edits</option>
+              <option value="default">Ask for actions</option>
+              <option value="plan">Plan only</option>
+            </select>
+          </section>
+
+          <section
+            id="reasoning-settings-card"
+            class="settings-card reasoning-settings-card"
+            aria-labelledby="reasoning-settings-heading"
+            tabindex="-1"
+          >
+            <div class="settings-card-heading">
+              <div>
+                <p id="reasoning-settings-model" class="settings-kicker">Active model</p>
+                <h3 id="reasoning-settings-heading">Reasoning and workflows</h3>
+              </div>
+              <span id="reasoning-settings-status" class="capability-badge">Checking…</span>
+            </div>
+            <p id="reasoning-settings-description">
+              Controls are matched to the capabilities reported by the active model.
+            </p>
+
+            <div class="reasoning-control-list">
+              <div id="thinking-control-row" class="reasoning-control-row">
+                <div class="reasoning-control-copy">
+                  <label id="thinking-toggle-label" for="thinking-toggle">Claude thinking</label>
+                  <p id="thinking-help">
+                    Let the model reason before it responds. Provider reasoning may remain private.
+                  </p>
+                </div>
+                <label class="switch-control" for="thinking-toggle">
+                  <input
+                    id="thinking-toggle"
+                    data-testid="thinking-toggle"
+                    type="checkbox"
+                    role="switch"
+                    aria-labelledby="thinking-toggle-label"
+                    aria-describedby="thinking-help thinking-unavailable-reason"
+                  />
+                  <span class="switch-track" aria-hidden="true"><span></span></span>
+                </label>
+                <p id="thinking-unavailable-reason" class="control-unavailable-reason" hidden></p>
+              </div>
+
+              <label id="settings-effort-row" class="reasoning-select-row" for="settings-effort-select">
+                <span>
+                  <strong id="effort-label">Reasoning effort</strong>
+                  <small id="effort-help">How much reasoning time the active model may use.</small>
+                </span>
+                <select
+                  id="settings-effort-select"
+                  data-testid="reasoning-effort-control"
+                  aria-describedby="effort-help effort-unavailable-reason"
+                ></select>
+                <small id="effort-unavailable-reason" class="control-unavailable-reason" hidden></small>
+              </label>
+
+              <div id="workflows-control-row" class="reasoning-control-row">
+                <div class="reasoning-control-copy">
+                  <label id="workflows-toggle-label" for="workflows-toggle">
+                    Workflows <span class="inline-experimental">Experimental</span>
+                  </label>
+                  <p id="workflows-help">
+                    Let Claude Code coordinate multi-step work through the active provider and the normal approval path.
+                  </p>
+                </div>
+                <label class="switch-control" for="workflows-toggle">
+                  <input
+                    id="workflows-toggle"
+                    data-testid="workflows-toggle"
+                    type="checkbox"
+                    role="switch"
+                    aria-labelledby="workflows-toggle-label"
+                    aria-describedby="workflows-help workflows-unavailable-reason"
+                  />
+                  <span class="switch-track" aria-hidden="true"><span></span></span>
+                </label>
+                <p id="workflows-unavailable-reason" class="control-unavailable-reason" hidden></p>
+              </div>
+
+              <div id="ultra-control-row" class="reasoning-control-row reasoning-control-row-featured">
+                <div class="reasoning-control-copy">
+                  <label id="ultra-toggle-label" for="ultra-toggle">
+                    Ultra <span class="inline-experimental">Experimental</span>
+                  </label>
+                  <p id="ultra-help">
+                    Uses Extra high provider reasoning and Workflows, plus Claude thinking where supported. Uses more time and allowance.
+                  </p>
+                </div>
+                <label class="switch-control" for="ultra-toggle">
+                  <input
+                    id="ultra-toggle"
+                    data-testid="ultra-toggle"
+                    type="checkbox"
+                    role="switch"
+                    aria-labelledby="ultra-toggle-label"
+                    aria-describedby="ultra-help ultra-unavailable-reason"
+                  />
+                  <span class="switch-track" aria-hidden="true"><span></span></span>
+                </label>
+                <p id="ultra-unavailable-reason" class="control-unavailable-reason" hidden></p>
+              </div>
+            </div>
+            <p id="reasoning-change-status" class="reasoning-change-status" aria-live="polite"></p>
+          </section>
+
+          <section class="settings-card">
+            <h3>Alerts</h3>
+            <p>Get a private alert when Auto-safe cannot approve an action itself.</p>
+            <button id="notification-button" data-testid="notification-enable" type="button">Enable approval alerts</button>
+          </section>
+
+          <dl class="session-facts">
+            <div><dt>Conversation</dt><dd id="session-title">Claude Code</dd></div>
+            <div><dt>Workspace</dt><dd id="workspace-name">—</dd></div>
+            <div><dt>Session</dt><dd id="session-id">—</dd></div>
+            <div><dt>Encryption</dt><dd>End-to-end · AES-256-GCM</dd></div>
+            <div><dt>Execution</dt><dd>Local Mac</dd></div>
+          </dl>
+
+          <div class="action-list">
+            <button id="usage-button" type="button">View usage and limits</button>
+            <section class="handback-card" aria-labelledby="handback-heading">
+              <div class="handback-copy">
+                <h3 id="handback-heading">Return to laptop</h3>
+                <p>ModelHop will finish the current turn and reopen this exact conversation.</p>
+              </div>
+              <button id="handback-button" class="primary-wide" data-testid="handback" type="button">
+                <span>Return when Claude finishes</span>
+                <small>Recommended · preserves the current response</small>
+              </button>
+              <details class="immediate-handback">
+                <summary>Need to return immediately?</summary>
+                <p>This stops Claude's current response. Any unfinished response progress will be lost.</p>
+                <button id="cancel-handback-button" class="danger-action" type="button">
+                  Cancel turn and return now
+                </button>
+              </details>
+            </section>
+          </div>
+          <p class="security-note">
+            The phone stays connected until Claude opens this exact conversation on your laptop.
+            A stopped Quick Tunnel link cannot be reused.
+          </p>
+        </section>
+      </main>
+
+      <nav class="bottom-tabs" data-testid="bottom-nav" aria-label="ModelHop Remote sections" role="tablist">
+        <button
+          id="tab-chat"
+          class="active"
+          role="tab"
+          aria-selected="true"
+          aria-controls="chat-panel"
+          data-panel="chat-panel"
+        >
+          <span aria-hidden="true">◌</span><span>Chat</span>
+        </button>
+        <button
+          id="tab-files"
+          role="tab"
+          aria-selected="false"
+          aria-controls="files-panel"
+          data-panel="files-panel"
+        >
+          <span aria-hidden="true">⌕</span><span>Files</span>
+        </button>
+        <button
+          id="tab-activity"
+          role="tab"
+          aria-selected="false"
+          aria-controls="activity-panel"
+          data-panel="activity-panel"
+        >
+          <span aria-hidden="true">↗</span><span>Activity</span>
+        </button>
+        <button
+          id="tab-settings"
+          role="tab"
+          aria-selected="false"
+          aria-controls="settings-panel"
+          data-panel="settings-panel"
+        >
+          <span aria-hidden="true">•••</span><span>Settings</span>
+        </button>
+      </nav>
+
+      <section
+        id="session-ended"
+        class="session-ended"
+        data-testid="session-ended"
+        role="status"
+        aria-live="assertive"
+        hidden
+      >
+        <div class="session-ended-card">
+          <span class="session-ended-mark" aria-hidden="true">✓</span>
+          <p class="eyebrow">Hand-back complete</p>
+          <h1>Conversation returned to laptop</h1>
+          <p class="session-ended-lead">
+            This exact Claude Code conversation is now open on your laptop.
+          </p>
+          <div class="session-ended-divider" aria-hidden="true"></div>
+          <p class="session-ended-note">
+            This temporary phone link has ended and can no longer send commands.
+            Close this page when you are ready.
+          </p>
+        </div>
+      </section>
+
+      <dialog id="route-dialog" class="bottom-sheet">
+        <form method="dialog" class="sheet-handle-row">
+          <span class="sheet-handle" aria-hidden="true"></span>
+          <button type="submit" aria-label="Close provider settings">×</button>
+        </form>
+        <div class="sheet-heading">
+          <p class="eyebrow">Claude Code route</p>
+          <h2>Provider and model</h2>
+        </div>
+        <button
+          id="route-reasoning-summary"
+          class="route-reasoning-summary"
+          type="button"
+          aria-label="Open thinking and effort settings"
+        >
+          <span class="reasoning-summary-symbol" aria-hidden="true">◒</span>
+          <span>
+            <strong id="route-reasoning-title">Checking reasoning support…</strong>
+            <small id="route-reasoning-detail">Matched to the active model</small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </button>
+        <div class="route-controls">
+          <label>
+            <span>Provider</span>
+            <select id="provider-select" data-testid="provider-control">
+              <option value="anthropic">Anthropic</option>
+              <option value="synthetic">Synthetic</option>
+              <option value="openai-api">OpenAI API</option>
+              <option value="openai-codex">OpenAI via Codex · Experimental</option>
+            </select>
+          </label>
+          <label>
+            <span>Model</span>
+            <select id="model-select"></select>
+            <small id="model-capability-summary" class="route-control-detail" aria-live="polite">
+              Loading current model capabilities…
+            </small>
+          </label>
+          <label>
+            <span id="route-effort-label">Reasoning effort</span>
+            <select id="effort-select" aria-label="Reasoning effort" aria-describedby="route-effort-help"></select>
+            <small id="route-effort-help" class="route-control-detail"></small>
+          </label>
+        </div>
+        <p id="model-change-status" class="route-change-status" aria-live="polite"></p>
+        <button id="open-usage-from-route" class="sheet-secondary" type="button">
+          <span>Usage and limits</span><strong id="usage-label">Unavailable</strong>
+        </button>
+      </dialog>
+
+      <dialog id="usage-dialog" class="bottom-sheet">
+        <form method="dialog" class="sheet-handle-row">
+          <span class="sheet-handle" aria-hidden="true"></span>
+          <button type="submit" aria-label="Close usage details">×</button>
+        </form>
+        <div class="sheet-heading">
+          <p class="eyebrow">Provider allowance</p>
+          <h2>Usage and limits</h2>
+        </div>
+        <pre id="usage-detail">Usage is not available yet.</pre>
+        <div class="sheet-actions">
+          <button id="refresh-usage" type="button">Refresh</button>
+          <button id="codex-reset" class="danger-action" type="button" hidden>
+            Use reset credit
+          </button>
+        </div>
+      </dialog>
+
+      <dialog id="attachment-dialog" class="bottom-sheet">
+        <form method="dialog" class="sheet-handle-row">
+          <span class="sheet-handle" aria-hidden="true"></span>
+          <button type="submit" aria-label="Close attachment choices">×</button>
+        </form>
+        <div class="sheet-heading">
+          <p class="eyebrow">Add context</p>
+          <h2>Attach to your message</h2>
+        </div>
+        <div class="attachment-actions">
+          <button id="attach-repository" type="button">
+            <span aria-hidden="true">⌕</span><span><strong>Repository file</strong><small>Browse files on your Mac</small></span>
+          </button>
+          <label>
+            <input
+              id="attachment-input"
+              type="file"
+              accept=".txt,.md,.json,.log,.csv,.pdf,.doc,.docx,.zip,application/*,text/*"
+              multiple
+            />
+            <span aria-hidden="true">▤</span><span><strong>Device document</strong><small>Choose from Files</small></span>
+          </label>
+          <label>
+            <input id="photo-input" type="file" accept="image/*" multiple />
+            <span aria-hidden="true">▧</span><span><strong>Photo library</strong><small>Select one or more images</small></span>
+          </label>
+          <label>
+            <input id="camera-input" type="file" accept="image/*" capture="environment" />
+            <span aria-hidden="true">◎</span><span><strong>Camera</strong><small>Take a new photo</small></span>
+          </label>
+        </div>
+      </dialog>
+
+      <dialog
+        id="file-viewer-dialog"
+        class="file-viewer-dialog"
+        aria-labelledby="file-viewer-title"
+      >
+        <header class="file-viewer-header">
+          <div class="file-viewer-title-wrap">
+            <p class="eyebrow">Repository preview</p>
+            <h2 id="file-viewer-title">File preview</h2>
+          </div>
+          <button
+            id="close-file-viewer"
+            class="file-viewer-close"
+            type="button"
+            aria-label="Close full-screen file preview"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+        <div class="file-viewer-toolbar">
+          <div
+            id="file-viewer-modes"
+            class="segmented-control file-viewer-modes"
+            role="group"
+            aria-label="Preview mode"
+          >
+            <button id="file-viewer-source" class="active" type="button" aria-pressed="true">
+              Source
+            </button>
+            <button id="file-viewer-preview" type="button" aria-pressed="false" hidden>
+              Preview
+            </button>
+          </div>
+          <button
+            id="file-viewer-interactions"
+            class="file-viewer-interactions"
+            type="button"
+            aria-pressed="false"
+            hidden
+          >
+            Enable interactions
+          </button>
+        </div>
+        <p id="file-viewer-note" class="file-viewer-note" hidden>
+          Preview runs in an isolated frame. External assets, forms, and connections are blocked. Scripts stay off until you enable interactions for a trusted file.
+        </p>
+        <main id="file-viewer-stage" class="file-viewer-stage">
+          <img id="file-viewer-image" alt="" hidden />
+          <pre id="file-viewer-code-wrap" tabindex="0"><code id="file-viewer-code"></code></pre>
+          <iframe
+            id="file-viewer-frame"
+            title="Isolated HTML preview"
+            referrerpolicy="no-referrer"
+            sandbox=""
+            hidden
+          ></iframe>
+        </main>
+      </dialog>
+
+      <div id="pending-permissions" class="approval-layer" data-testid="approval-sheet" hidden></div>
+      <div id="status-region" class="sr-only" role="status" aria-live="polite"></div>
+      <div id="toast-region" class="toast-region" aria-live="polite"></div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

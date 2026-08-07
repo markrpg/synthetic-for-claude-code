@@ -14,6 +14,7 @@ import type {
   SyntheticSettings,
 } from "../providers/types.js";
 import type {
+  BridgeActivitySnapshot,
   BridgeConfiguration,
   BridgeHealth,
   BridgeModel,
@@ -201,6 +202,11 @@ export class BridgeManager {
     return this.control<BridgeUsageSnapshot>("/control/usage");
   }
 
+  public async activity(): Promise<BridgeActivitySnapshot> {
+    await this.ensureDaemon();
+    return this.control<BridgeActivitySnapshot>("/control/activity");
+  }
+
   public async codexModels(): Promise<OpenAIModel[]> {
     await this.ensureDaemon();
     const response = await this.control<{ data?: BridgeModel[] }>(
@@ -337,7 +343,7 @@ export class BridgeManager {
           : `OpenAI model validation failed with status ${response.status}.`,
       );
     }
-    const body = await response.json();
+    const body: unknown = await response.json();
     const data =
       isRecord(body) && Array.isArray(body.data) ? body.data : [];
     const available = new Set(

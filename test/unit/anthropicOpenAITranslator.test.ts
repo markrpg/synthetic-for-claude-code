@@ -75,6 +75,35 @@ describe("Anthropic/OpenAI translation", () => {
     );
   });
 
+  it("honours Claude Code's explicit per-turn effort for the upstream model", () => {
+    const plan = translateAnthropicRequest(
+      {
+        model: "gpt-5.6-terra",
+        output_config: { effort: "max" },
+        thinking: { type: "adaptive" },
+        messages: [{ role: "user", content: "Use maximum effort." }],
+      },
+      DEFAULT_OPENAI_SETTINGS,
+    );
+
+    expect(plan.effort).toBe("max");
+    expect(plan.request).toMatchObject({ reasoning: { effort: "max" } });
+    expect(plan.request).not.toHaveProperty("thinking");
+  });
+
+  it("ignores an invalid per-turn effort and keeps the configured role effort", () => {
+    const plan = translateAnthropicRequest(
+      {
+        model: "gpt-5.6-terra",
+        output_config: { effort: "maximum-ish" },
+      },
+      DEFAULT_OPENAI_SETTINGS,
+    );
+
+    expect(plan.effort).toBe("medium");
+    expect(plan.request).toMatchObject({ reasoning: { effort: "medium" } });
+  });
+
   it("preserves encrypted reasoning continuity without fabricating thinking blocks", () => {
     const priorContent = [
       { type: "text", text: "I will inspect it." },

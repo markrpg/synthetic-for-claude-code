@@ -22,7 +22,9 @@ import { CredentialService } from "./credentials/credentialService.js";
 import { RedactingLogger } from "./logging/redactingLogger.js";
 import { OpenAIModelService } from "./openai/openAIModelService.js";
 import { ProviderRegistry } from "./providers/providerRegistry.js";
+import type { ProviderId } from "./providers/types.js";
 import { ReloadCoordinator } from "./reload/reloadCoordinator.js";
+import { RemoteManager } from "./remote/remoteManager.js";
 import { SnapshotService } from "./snapshots/snapshotService.js";
 import { SyntheticApiService } from "./synthetic/syntheticApiService.js";
 import { ClaudeTranscriptRepairService } from "./transcripts/claudeTranscriptRepairService.js";
@@ -164,6 +166,36 @@ export async function activate(
       providerRegistry.getSyntheticSettings().baseUrl,
       bridgeManager.getBaseUrl(),
     );
+  const currentRemoteProvider = (): ProviderId => {
+    const provider = currentProvider();
+    if (
+      provider === "anthropic" ||
+      provider === "synthetic" ||
+      provider === "openai-api" ||
+      provider === "openai-codex"
+    ) {
+      return provider;
+    }
+    throw new Error(
+      "ModelHop Remote requires Anthropic, Synthetic, OpenAI API, or OpenAI via Codex to be active.",
+    );
+  };
+  const remoteManager = new RemoteManager(
+    context,
+    settingsService,
+    providerRegistry,
+    credentialService,
+    syntheticApiService,
+    bridgeManager,
+    switchCommand,
+    reloadCoordinator,
+    logger,
+    currentRemoteProvider,
+    openAIModelService,
+  );
+  switchCommand.setExecutionGuard(() =>
+    remoteManager.allowLocalProviderSwitch(),
+  );
 
   const configureOpenAIModels = async (
     providerId: "openai-api" | "openai-codex",
@@ -367,6 +399,32 @@ export async function activate(
     },
   );
   register(
+    "modelHop.continueOnPhone",
+    async () => remoteManager.continueOnPhone(),
+  );
+  register(
+    "modelHop.returnToLaptop",
+    async () => remoteManager.returnToLaptop(),
+  );
+  register(
+    "modelHop.recoverRemoteConversation",
+    async () => {
+      await remoteManager.recoverLastRemoteConversation();
+    },
+  );
+  register(
+    "modelHop.stopRemoteAccess",
+    async () => remoteManager.stopRemoteAccess(),
+  );
+  register(
+    "modelHop.managePairedDevices",
+    async () => remoteManager.managePairedDevices(),
+  );
+  register(
+    "modelHop.createRemoteSupportBundle",
+    async () => remoteManager.createSupportBundle(),
+  );
+  register(
     [
       "modelHop.configureSyntheticModels",
       "claudeProvider.configureSyntheticModels",
@@ -429,6 +487,7 @@ export async function activate(
     statusBarController,
     quotaStatusBarController,
     providerUsageController,
+    remoteManager,
     vscode.window.onDidChangeWindowState((state) => {
       if (state.focused) {
         quotaStatusBarController.handleWindowFocus();
@@ -469,9 +528,17 @@ export async function activate(
       logger.error(error);
     }
   }
+  try {
+    await remoteManager.initialize();
+  } catch (error) {
+    logger.error(error);
+    await vscode.window.showWarningMessage(
+      "ModelHop could not reconcile an earlier Remote tunnel safely. Provider switching remains available; run “ModelHop: Stop Remote Access” before starting another phone session.",
+    );
+  }
   await reloadCoordinator.showPostReloadNotification();
 }
 
 export function deactivate(): void {
-  // The detached bridge intentionally survives full-window reloads.
+  // Detached bridge, remote controller, and active Quick Tunnel survive reloads.
 }

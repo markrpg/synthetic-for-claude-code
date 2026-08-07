@@ -5,6 +5,7 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 import {
   BRIDGE_PROTOCOL_VERSION,
+  type BridgeActivitySnapshot,
   type BridgeConfiguration,
   type BridgeHealth,
 } from "./types.js";
@@ -223,9 +224,14 @@ class BridgeServer {
   private synthetic: SyntheticMessagesClient | undefined;
   private readonly usage = new UsageTracker();
   private lastActivity = Date.now();
+  private activityUpdatedAt = Date.now();
   private readonly reasoningStore: EncryptedReasoningStore;
   private readonly contextStore: EncryptedContextStore;
   private readonly contextManager: ContextManager;
+  private readonly activeRequests = new Map<
+    string,
+    BridgeActivitySnapshot
+  >();
 
   public constructor(
     private readonly args: Arguments,
@@ -408,6 +414,10 @@ class BridgeServer {
       json(response, 200, this.usage.snapshot());
       return;
     }
+    if (request.method === "GET" && pathname === "/control/activity") {
+      json(response, 200, this.activitySnapshot());
+      return;
+    }
     if (request.method === "GET" && pathname === "/control/codex/account") {
       json(response, 200, await this.requireCodex().account());
       return;
@@ -459,6 +469,7 @@ class BridgeServer {
       return;
     }
     const abortController = new AbortController();
+    const activityId = this.beginActivity();
     incoming.once("aborted", () => abortController.abort());
     response.once("close", () => {
       if (!response.writableEnded) {
@@ -478,8 +489,9 @@ class BridgeServer {
       configuration.provider === "openai-codex" &&
       this.hasToolResults(request);
 
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
         const contextWindow =
           configuration.provider === "synthetic"
             ? await this.requireSynthetic().contextWindow(request.model)
@@ -518,10 +530,26 @@ class BridgeServer {
                     signal,
                   );
                 },
+                onProgress: (progress) => {
+                  this.updateActivity(activityId, {
+                    phase:
+                      progress.phase === "ready"
+                        ? "requesting"
+                        : progress.phase,
+                    estimatedInputTokens:
+                      progress.estimatedInputTokens,
+                    contextWindow: progress.contextWindow,
+                    threshold: progress.threshold,
+                    compacted: progress.compacted,
+                  });
+                },
               })
             ).request;
+        this.updateActivity(activityId, {
+          phase: "requesting",
+        });
 
-        if (configuration.provider === "synthetic") {
+          if (configuration.provider === "synthetic") {
           if (request.stream === true) {
             const upstream = await this.requireSynthetic().fetchStream(
               prepared,
@@ -548,7 +576,7 @@ class BridgeServer {
           return;
         }
 
-        if (configuration.provider === "openai-api") {
+          if (configuration.provider === "openai-api") {
           if (request.stream === true) {
             const stream = openAIClient!.stream(
               prepared,
@@ -580,12 +608,12 @@ class BridgeServer {
           return;
         }
 
-        const result = await this.requireCodex().run(
+          const result = await this.requireCodex().run(
           prepared,
           configuration.openAISettings,
           abortController.signal,
         );
-        if (request.stream === true) {
+          if (request.stream === true) {
           response.writeHead(200, {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache, no-store",
@@ -595,22 +623,80 @@ class BridgeServer {
             response.write(frame);
           }
           response.end();
-        } else {
-          json(response, 200, result);
+          } else {
+            json(response, 200, result);
+          }
+          return;
+        } catch (error) {
+          if (
+            attempt === 0 &&
+            !liveCodexToolContinuation &&
+            !response.headersSent &&
+            isContextWindowError(error)
+          ) {
+            continue;
+          }
+          throw error;
         }
-        return;
-      } catch (error) {
-        if (
-          attempt === 0 &&
-          !liveCodexToolContinuation &&
-          !response.headersSent &&
-          isContextWindowError(error)
-        ) {
-          continue;
-        }
-        throw error;
       }
+    } finally {
+      this.activeRequests.delete(activityId);
+      this.activityUpdatedAt = Date.now();
     }
+  }
+
+  private beginActivity(): string {
+    const id = randomUUID();
+    const now = Date.now();
+    this.activityUpdatedAt = now;
+    this.activeRequests.set(id, {
+      requestId: id,
+      phase: "counting",
+      activeRequests: this.activeRequests.size + 1,
+      startedAt: now,
+      updatedAt: now,
+    });
+    return id;
+  }
+
+  private updateActivity(
+    id: string,
+    update: Partial<
+      Omit<
+        BridgeActivitySnapshot,
+        "requestId" | "activeRequests" | "startedAt" | "updatedAt"
+      >
+    >,
+  ): void {
+    const current = this.activeRequests.get(id);
+    if (!current) {
+      return;
+    }
+    const now = Date.now();
+    this.activityUpdatedAt = now;
+    this.activeRequests.set(id, {
+      ...current,
+      ...update,
+      activeRequests: this.activeRequests.size,
+      updatedAt: now,
+    });
+  }
+
+  private activitySnapshot(): BridgeActivitySnapshot {
+    const current = [...this.activeRequests.values()].sort(
+      (left, right) => right.updatedAt - left.updatedAt,
+    )[0];
+    if (!current) {
+      return {
+        phase: "idle",
+        activeRequests: 0,
+        updatedAt: this.activityUpdatedAt,
+      };
+    }
+    return {
+      ...current,
+      activeRequests: this.activeRequests.size,
+    };
   }
 
   private requireCodex(): CodexAppServerClient {

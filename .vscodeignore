@@ -4,6 +4,12 @@
 .vscode-test/**
 coverage/**
 dist-test/**
+docs/**/*.docx
+docs/**/*.log
+docs/**/*.zip
+docs/**/__screenshots__/**
+playwright-report/**
+test-results/**
 dist/**/*.map
 node_modules/**
 scripts/**
@@ -12,5 +18,6 @@ test/**
 *.vsix
 eslint.config.mjs
 esbuild.mjs
+playwright.config.*
 tsconfig*.json
 vitest.config.*

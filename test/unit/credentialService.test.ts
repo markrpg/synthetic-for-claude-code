@@ -6,6 +6,10 @@ import {
   BRIDGE_CONTROL_TOKEN_SECRET_KEY,
   CredentialService,
   OPENAI_API_KEY_SECRET_KEY,
+  REMOTE_CONTROL_TOKEN_SECRET_KEY,
+  REMOTE_DEVICE_STORE_KEY_SECRET_KEY,
+  REMOTE_HOST_IDENTITY_SECRET_KEY,
+  REMOTE_LAUNCH_TOKEN_SECRET_KEY,
 } from "../../src/credentials/credentialService.js";
 
 function createSecrets(): {
@@ -72,5 +76,30 @@ describe("CredentialService", () => {
     expect(values.has(OPENAI_API_KEY_SECRET_KEY)).toBe(false);
     expect(values.get(BRIDGE_AUTH_TOKEN_SECRET_KEY)).toBe(bridge);
     expect(values.get(BRIDGE_CONTROL_TOKEN_SECRET_KEY)).toBe(control);
+  });
+
+  it("keeps independent remote control, store, and host identity secrets", async () => {
+    const { secrets, values } = createSecrets();
+    const service = new CredentialService(secrets);
+
+    const control = await service.getOrCreateRemoteControlToken();
+    const storeKey = await service.getOrCreateRemoteDeviceStoreKey();
+    const identity = await service.getOrCreateRemoteHostIdentity();
+    const launch = await service.getOrCreateRemoteLaunchToken("lease-1");
+
+    expect(values.get(REMOTE_CONTROL_TOKEN_SECRET_KEY)).toBe(control);
+    expect(values.get(REMOTE_DEVICE_STORE_KEY_SECRET_KEY)).toBe(
+      storeKey,
+    );
+    expect(values.get(REMOTE_HOST_IDENTITY_SECRET_KEY)).toContain(
+      identity.privateKey,
+    );
+    expect(values.get(REMOTE_LAUNCH_TOKEN_SECRET_KEY)).toContain(
+      launch,
+    );
+    expect(control).not.toBe(storeKey);
+    expect(identity.privateKey).not.toBe(identity.publicKey);
+    await service.clearRemoteLaunchToken();
+    expect(values.has(REMOTE_LAUNCH_TOKEN_SECRET_KEY)).toBe(false);
   });
 });

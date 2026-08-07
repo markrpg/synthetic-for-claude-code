@@ -17,6 +17,12 @@ function hasConfiguredValue<T>(
   );
 }
 
+export function hasConfiguredModelHopSetting(key: string): boolean {
+  return hasConfiguredValue(
+    vscode.workspace.getConfiguration("modelHop").inspect(key),
+  );
+}
+
 export function readModelHopSetting<T>(
   key: string,
   fallback: T,

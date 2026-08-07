@@ -231,7 +231,7 @@ export class OpenAIResponsesClient {
       this.reasoningStore,
     );
     const response = await this.fetchResponse(plan, signal);
-    const body = await response.json();
+    const body: unknown = await response.json();
     const translated = translateOpenAIResponse(body, plan);
     this.rememberReasoning(body, translated);
     const usage = usageFromResponse(body);

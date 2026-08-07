@@ -86,6 +86,24 @@ export interface BridgeUsageSnapshot {
   codexUsage?: unknown;
 }
 
+export type BridgeActivityPhase =
+  | "idle"
+  | "counting"
+  | "compacting"
+  | "requesting";
+
+export interface BridgeActivitySnapshot {
+  requestId?: string;
+  phase: BridgeActivityPhase;
+  updatedAt: number;
+  startedAt?: number;
+  activeRequests: number;
+  estimatedInputTokens?: number;
+  contextWindow?: number;
+  threshold?: number;
+  compacted?: boolean;
+}
+
 export interface BridgeModel {
   id: string;
   displayName: string;
